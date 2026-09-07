@@ -1,0 +1,36 @@
+{
+  "name": "Ansible Dev Environment",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "ansible.python.interpreterPath": "/usr/bin/python3",
+        "ansible.ansible.path": "/usr/bin/ansible"
+      },
+      "extensions": [
+        "redhat.ansible",
+        "ms-python.python",
+        "tamasfe.even-better-toml"
+      ]
+    }
+  },
+
+  // Important: Specify the remote user
+  "remoteUser": "root",
+  
+  // Update mounts to use proper format
+  "mounts": [
+    "source=${localEnv:USERPROFILE}/.ssh,target=/root/.ssh,type=bind,readonly"
+  ],
+
+  // Add these settings for Podman compatibility
+  "runArgs": [
+    "--userns=keep-id"
+  ],
+
+  // "postCreateCommand": "ansible-galaxy install -r requirements.yml || echo 'No requirements found'"
+  "postCreateCommand": "ansible --version"
+}

@@ -1,0 +1,22 @@
+---
+- name: Install Gitlab server
+  hosts: vm_test2
+  vars:
+    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+  gather_facts: false
+  become: true
+  vars_files:
+    - ./credentials.yml
+
+  tasks:
+    - name: "Install Gitlab Server"
+      ansible.builtin.debug:
+        var: ansible_facts
+        verbosity: 1
+
+    - name: "Include Ansible role to install Gitlab Server"
+      ansible.builtin.include_role:
+        name: ro_gitlab_present
+      vars:
+        gls_domain: "{{ ip_address_v4 }}"
+      when: false

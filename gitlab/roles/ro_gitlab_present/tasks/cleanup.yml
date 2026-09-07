@@ -1,0 +1,16 @@
+---
+- name: "Cleanup: Remove GitLab installation file"
+  ansible.builtin.file:
+    path: "/tmp/{{ item }}"
+    state: absent
+  loop:
+    - "{{ gitlab_installation_file }}"
+    # - "{{ gitlab_license_file }}"
+    - "/root/{{ gls_ruby_script }}"
+
+- name: "Remove temporary directory for scripts"
+  ansible.builtin.file:
+    path: "{{ gitlab_rb_scripts_tempdir.path }}"
+    state: absent
+
+...

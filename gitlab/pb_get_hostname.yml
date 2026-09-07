@@ -1,0 +1,15 @@
+---
+- name: Retrieve hostname from RHEL 9 server
+  hosts: vm_test
+  gather_facts: false
+  vars_files:
+    - ./credentials.yml
+
+  tasks:
+    - name: "Get the hostname"
+      ansible.builtin.command: hostname
+      register: hostname_result
+
+    - name: Display the hostname
+      ansible.builtin.debug:
+        var: hostname_result.stdout

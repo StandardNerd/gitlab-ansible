@@ -1,0 +1,33 @@
+---
+
+- name: "Create temporary directory for scripts"
+  ansible.builtin.tempfile:
+    prefix: gitlab_rb_scripts
+    state: directory
+  changed_when: false
+  register: gitlab_rb_scripts_tempdir
+
+- name: "Set permissions on temporary directory for scripts"
+  ansible.builtin.file:
+    path: "{{ gitlab_rb_scripts_tempdir.path }}"
+    state: directory
+    mode: '0755'
+  changed_when: false
+
+- name: "Copy KAPO-Logo.SVG to remote host"
+  ansible.builtin.copy:
+    src: "../files/KAPO-Logo.SVG"
+    dest: "{{ gitlab_rb_scripts_tempdir.path }}/KAPO-Logo.SVG"
+    mode: '0644'
+
+- name: "Copy rails configuration script"
+  ansible.builtin.template:
+    src: "rails_configuration_steps.rb"
+    dest: "{{ gitlab_rb_scripts_tempdir.path }}/rails_configuration_steps.rb"
+    mode: '0644'
+
+- name: "Execute rails configuration script"
+  ansible.builtin.command: "gitlab-rails runner {{ gitlab_rb_scripts_tempdir.path }}/rails_configuration_steps.rb"
+  register: rails_runner_result
+  changed_when: "'Admin token created' in rails_runner_result.stdout"
+  failed_when: "'Error' in rails_runner_result.stderr"

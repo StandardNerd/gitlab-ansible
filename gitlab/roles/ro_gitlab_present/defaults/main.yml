@@ -1,0 +1,54 @@
+#SPDX-License-Identifier: MIT-0
+---
+# controls whether to execute ro_gitlab_postinstall
+perform_postinstall_setup: true
+
+gitlab_license_file: "gitlab-license.json"
+gls_ruby_script: "rails_configuration_steps.rb"
+
+gls_redirect_http_to_https: true
+
+gls_signup_enabled: false
+
+gitlab_package_name: "gitlab-ce"
+gitlab_installation_file: "gitlab-ce-18.8.0-ce.0.el10.x86_64.rpm"
+
+gls_external_url: "http://{{ gls_domain }}"
+gls_sign_in_url: "http://{{ gls_domain }}/users/sign_in"
+enable_ip_list: "http://{{ gls_domain }}/24"
+health_check_url: "http://{{ gls_domain }}/-/health_check"
+readiness_check_url: "http://{{ gls_domain }}/-/readiness"
+liveness_check_url: "http://{{ gls_domain }}/-/liveness"
+gls_api_version: "v4"
+gls_api_url: "http://{{ gls_domain }}/-/api/{{ gls_api_version }}"
+
+gls_admin_username: "gls_admin"
+gls_admin_password: "gls_initial_adm_pwd"
+
+gls_enable_internal_db: true
+gls_postgresql_user: "gitlab"
+gls_postgresql_password: "password"
+gls_postgresql_database: "gitlabhq_production"
+gls_postgresql_host: "localhost"
+gls_postgresql_port: "5432"
+
+# LDAP
+gls_ldap_enabled: true
+gls_ldap_label: LDAPS
+gls_ldap_port: '636'
+gls_ldap_uid: sAMAccountName
+gls_ldap_encryptionn: 'simple_tls'
+gls_ldap_verify_certificates: true
+gls_ldap_smartcard_auth: false
+gls_ldap_active_directory: true
+gls_ldap_allow_username_or_email: true
+gls_ldap_lowercase_usernames: false
+gls_ldap_block_auto_created_users: false
+gls_ldap_can_create_group: true
+gls_ldap_can_create_project: true
+gls_ldap_group_base: "OU=Groups,DC=example,DC=com"
+gls_ldap_user_base: "OU=Users,DC=example,DC=com"
+gls_ldap_bind_dn: "CN=GitLab Bind User,OU=Users,DC=example,DC=com"
+gls_ldap_bind_password: "password"
+
+...

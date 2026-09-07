@@ -1,0 +1,35 @@
+---
+- name: Test Ansible Dev Environment
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  vars:
+    test_message: "Ansible läuft erfolgreich im Container!"
+
+  tasks:
+    - name: Verbindungsprüfung anzeigen
+      ansible.builtin.debug:
+        msg: "{{ test_message }}"
+
+    - name: Ansible-Version prüfen
+      ansible.builtin.debug:
+        msg: "Ansible Version: {{ ansible_version.string }}"
+
+    - name: Python-Interpreter verifizieren
+      ansible.builtin.debug:
+        msg: "Python Interpreter: {{ ansible_playbook_python }}"
+
+    - name: Betriebssystem des Containers prüfen
+      ansible.builtin.debug:
+        msg: "Laufendes OS: {{ ansible_distribution }} {{ ansible_distribution_version }}"
+
+    - name: Eine lokale Testdatei erstellen
+      ansible.builtin.copy:
+        content: "Diese Datei bestätigt Schreibrechte im Container-Workspace.\n"
+        dest: "./test_result.txt"
+        mode: '0644'
+      register: file_result
+
+    - name: Dateierstellung bestätigen
+      ansible.builtin.debug:
+        msg: "Testdatei erfolgreich erstellt: {{ file_result.dest }}"

@@ -1,0 +1,27 @@
+---
+- name: "HANDLER: Start HTTPS"
+  ansible.builtin.systemd:
+    name: sshd
+    daemon_reload: true 
+    enabled: true 
+    state: started
+  listen: "start sshd"
+
+- name: "HANDLER: Stop HTTPS"
+  ansible.builtin.systemd:
+    name: sshd
+    state: stopped
+  listen: "stop sshd"
+
+- name: "HANDLER: Restart HTTPS"
+  ansible.builtin.systemd:
+    name: sshd
+    state: restarted
+  listen: "restart sshd"
+
+- name: "HANDLER: Reload firewalld service"
+  ansible.builtin.systemd:
+    name: firewalld
+    state: reloaded
+  listen: firewalld_reload
+...

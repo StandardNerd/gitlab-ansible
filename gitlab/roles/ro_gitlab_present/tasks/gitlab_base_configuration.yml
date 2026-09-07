@@ -1,0 +1,67 @@
+---
+
+- name: "Gitlab Configuration: Copy Gitlab configuration file"
+  ansible.builtin.template:
+    backup: true
+    src: "../files/gitlab.rb.j2"
+    dest: "/etc/gitlab/gitlab.rb"
+    mode: '0600'
+
+- name: "Gitlab Configuration: Copy Gitlab License file"
+  ansible.builtin.copy:
+    src: "../files/gitlab-license.json"
+    dest: "/etc/gitlab/gitlab-license.json"
+    mode: '0600'
+
+- name: "Gitlab Configuration: Reconfigure Gitlab"
+  block:
+    - name: "Gitlab Configuration BLOCK: Reconfigure Gitlab"
+      ansible.builtin.command: "gitlab-ctl reconfigure" 
+      ignore_errors: true
+      async: 1200
+      poll: 0
+      register: gitlab_reconfigure
+      changed_when: false
+      # changed_when: gitlab_reconfigure.rc != 0
+
+    - name: "Gitlab Configuration BLOCK: WAIT for Gitlab reconfiguration to finish"
+      ansible.builtin.async_status:
+        jid: "{{ gitlab_reconfigure.jid }}"
+      register: job_result
+      until: job_result.finished
+      retries: 50
+      delay: 20
+      when: gitlab_reconfigure.ansible_job_id is defined
+      changed_when: false
+
+    - name: "Gitlab Configuration readiness BLOCK: Test readiness of Gitlab"
+      block:
+        - name: "Gitlab Configuration readiness BLOCK: check readiness of Gitlab"
+          ansible.builtin.uri:
+            url: "https://{{ ansible_host if molecule_test == false else ip_address_v4 }}/-/readiness"
+            status_code: 200
+            return_content: true
+          register: result
+          retries: 20
+          delay: 15
+          until: "'ok' in result.content"
+      
+      rescue:
+        - name: "Gitlab Configuration readiness RESCUE: Add FWDN in /etc/hosts"
+          ansible.builtin.lineinfile:
+            path: "/etc/hosts"
+            regexp: "'^{{ ansible_host }}"
+            line: "{{ ansible_host if molecule_test == false else ip_address_v4 }} {{ gls_domain }}"
+            mode: '0644'           
+
+        - name: "Gitlab Configuration readiness BLOCK: retry readiness of Gitlab"
+          ansible.builtin.uri:
+            url: "https://{{ ansible_host if molecule_test == false else ip_address_v4 }}/-/readiness"
+            status_code: 200
+            return_content: true
+          register: result
+          retries: 20
+          delay: 15
+          until: "'ok' in result.content"
+          
+...
