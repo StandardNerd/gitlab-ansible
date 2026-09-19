@@ -1,0 +1,31 @@
+---
+# pb_gitlab_runner.yml
+# Deploy and configure a GitLab Runner using Podman on target hosts.
+#
+# Usage:
+#   ansible-playbook pb_gitlab_runner.yml \
+#     -i inventory/hosts.yml \
+#     -l runner_hosts \
+#     --extra-vars "gitlab_url=https://gitlab.example.com" \
+#     --ask-vault-pass
+
+- name: "Deploy GitLab Runner (Podman)"
+  hosts: runner_hosts
+  vars:
+    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+  gather_facts: true
+  become: true
+  vars_files:
+    - ./credentials.yml
+
+  tasks:
+    - name: "Include ro_gitlab_runner role"
+      ansible.builtin.include_role:
+        name: ro_gitlab_runner
+      vars:
+        gitlab_url: "{{ gitlab_url | default('http://gitlab.example.com') }}"
+        gitlab_runner_registration_token: "{{ runner_registration_token }}"
+        gitlab_runner_name: "{{ inventory_hostname }}-podman-runner"
+        gitlab_runner_tags: "podman,linux"
+        gitlab_runner_concurrent: 4
+        gitlab_runner_executor: "shell"

@@ -1,0 +1,49 @@
+#SPDX-License-Identifier: MIT-0
+#
+# templates/config.toml.j2
+#
+# GitLab Runner configuration file (config.toml)
+# This template is rendered once on first deploy.  After the runner is
+# registered, GitLab Runner itself manages this file.
+# Reference: https://docs.gitlab.com/runner/configuration/advanced-configuration.html
+#
+
+concurrent = {{ gitlab_runner_concurrent | int }}
+check_interval = {{ gitlab_runner_check_interval | int }}
+log_level = "{{ gitlab_runner_log_level }}"
+log_format = "{{ gitlab_runner_log_format }}"
+
+[session_server]
+  session_timeout = 1800
+
+{% if gitlab_runner_token | length > 0 %}
+[[runners]]
+  name = "{{ gitlab_runner_name }}"
+  url = "{{ gitlab_url }}"
+  token = "{{ gitlab_runner_token }}"
+  executor = "{{ gitlab_runner_executor }}"
+
+{% if gitlab_runner_executor == "docker" %}
+  [runners.docker]
+    image = "{{ gitlab_runner_default_image }}"
+    privileged = {{ gitlab_runner_privileged | lower }}
+    disable_entrypoint_overwrite = false
+    oom_kill_disable = false
+    disable_cache = false
+    volumes = [{% for v in gitlab_runner_volumes %}"{{ v }}"{% if not loop.last %}, {% endif %}{% endfor %}]
+    shm_size = 0
+{% if gitlab_runner_enable_podman_socket %}
+    # Point the docker executor at the Podman socket
+    host = "unix://{{ _podman_socket_path }}"
+{% endif %}
+{% endif %}
+
+{% if gitlab_runner_executor == "shell" %}
+  [runners.custom_build_dir]
+{% endif %}
+
+  [runners.cache]
+    [runners.cache.s3]
+    [runners.cache.gcs]
+    [runners.cache.azure]
+{% endif %}

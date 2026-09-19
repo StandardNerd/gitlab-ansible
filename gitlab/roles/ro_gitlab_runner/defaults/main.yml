@@ -1,0 +1,129 @@
+#SPDX-License-Identifier: MIT-0
+---
+# defaults file for ro_gitlab_runner
+
+# ---------------------------------------------------------------------------
+# GitLab instance connection
+# ---------------------------------------------------------------------------
+
+# URL of the GitLab instance to register the runner with
+gitlab_url: "http://gitlab.example.com"
+
+# Registration token obtained from GitLab (Admin > CI/CD > Runners)
+# Override via vault or extra-vars; do NOT store plaintext in source control
+gitlab_runner_registration_token: "REPLACE_ME"
+
+# Optional: existing runner authentication token for re-registration / update.
+# When set, the role uses it instead of re-registering from scratch.
+gitlab_runner_token: ""
+
+# ---------------------------------------------------------------------------
+# Runner identity
+# ---------------------------------------------------------------------------
+
+# Human-readable name shown in GitLab UI
+gitlab_runner_name: "{{ inventory_hostname }}-podman"
+
+# Comma-separated list of tags that jobs can use to target this runner.
+# Example: "podman,linux,rhel"
+gitlab_runner_tags: "podman"
+
+# If true, the runner picks up untagged jobs as well
+gitlab_runner_run_untagged: true
+
+# If true, the runner is locked to the project it was registered with
+gitlab_runner_locked: false
+
+# ---------------------------------------------------------------------------
+# Concurrency & resource limits
+# ---------------------------------------------------------------------------
+
+# Maximum number of jobs running simultaneously across all executors
+gitlab_runner_concurrent: 4
+
+# How often (seconds) the runner polls GitLab for new jobs
+gitlab_runner_check_interval: 3
+
+# ---------------------------------------------------------------------------
+# Executor settings (Podman / shell-inside-container)
+# ---------------------------------------------------------------------------
+
+# Executor type. Use "shell" for native shell inside the runner container,
+# or "docker" (mapped to podman socket) for a Docker-compatible executor.
+gitlab_runner_executor: "shell"
+
+# Default container image used when executor is "docker"
+gitlab_runner_default_image: "alpine:latest"
+
+# Run containers in privileged mode (needed for Docker-in-Docker / Podman-in-Podman)
+gitlab_runner_privileged: false
+
+# Extra volumes to mount into job containers when using docker executor.
+# Example: ["/cache", "/builds:/builds"]
+gitlab_runner_volumes:
+  - "/cache"
+
+# ---------------------------------------------------------------------------
+# Podman setup
+# ---------------------------------------------------------------------------
+
+# GitLab Runner OCI image
+gitlab_runner_image: "docker.io/gitlab/gitlab-runner:latest"
+
+# Name of the Podman container that runs the GitLab Runner process
+gitlab_runner_container_name: "gitlab-runner"
+
+# Host directory that will be bind-mounted into the runner container as
+# /etc/gitlab-runner (holds config.toml and per-runner certificates)
+gitlab_runner_config_dir: "/etc/gitlab-runner"
+
+# Host directory used for build workspaces
+gitlab_runner_builds_dir: "/var/lib/gitlab-runner/builds"
+
+# Host directory used for the runner cache
+gitlab_runner_cache_dir: "/var/lib/gitlab-runner/cache"
+
+# When true, enable the Podman socket so that job containers can use
+# "docker" CLI transparently (rootless socket at user level, or root socket)
+gitlab_runner_enable_podman_socket: true
+
+# Run the runner container as a specific UID:GID (empty = podman default)
+gitlab_runner_container_user: ""
+
+# Additional environment variables to pass into the runner container.
+# Example: ["DOCKER_HOST=unix:///run/podman/podman.sock"]
+gitlab_runner_container_env: []
+
+# Restart policy for the Podman container (always | on-failure | no)
+gitlab_runner_restart_policy: "always"
+
+# ---------------------------------------------------------------------------
+# Systemd / service integration
+# ---------------------------------------------------------------------------
+
+# Generate and enable a systemd unit for the runner container (recommended)
+gitlab_runner_systemd_enabled: true
+
+# Name of the generated systemd service unit
+gitlab_runner_systemd_service: "container-{{ gitlab_runner_container_name }}"
+
+# ---------------------------------------------------------------------------
+# Firewall
+# ---------------------------------------------------------------------------
+
+# Open outbound-required ports via firewalld (runner contacts GitLab, not
+# the other way around, so no inbound rules are normally needed).
+# Set to false if firewalld is not in use on the target host.
+gitlab_runner_configure_firewall: false
+
+# ---------------------------------------------------------------------------
+# Logging / debug
+# ---------------------------------------------------------------------------
+
+# Log level for the runner process (debug | info | warn | error | fatal | panic)
+gitlab_runner_log_level: "info"
+
+# Log format (runner | text | json)
+gitlab_runner_log_format: "runner"
+
+...

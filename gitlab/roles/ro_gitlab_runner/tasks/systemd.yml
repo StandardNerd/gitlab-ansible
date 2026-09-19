@@ -1,0 +1,38 @@
+#SPDX-License-Identifier: MIT-0
+---
+# tasks/systemd.yml — generate and install a systemd unit for the runner container
+#
+# Uses `podman generate systemd` to produce a unit file that survives reboots.
+# On Podman >= 4.4 (Quadlet) you may prefer Quadlet unit files instead;
+# this approach is compatible with all supported Podman versions.
+
+- name: "Systemd: Generate systemd unit file from Podman container"
+  ansible.builtin.command: >
+    podman generate systemd
+    --name {{ gitlab_runner_container_name }}
+    --restart-policy {{ gitlab_runner_restart_policy }}
+    --files
+    --new
+  args:
+    chdir: "{{ _systemd_unit_dir }}"
+  register: _systemd_generate
+  changed_when: _systemd_generate.rc == 0
+
+- name: "Systemd: Reload systemd daemon"
+  ansible.builtin.systemd:
+    daemon_reload: true
+  when: _systemd_generate.changed
+
+- name: "Systemd: Enable and start the runner service"
+  ansible.builtin.systemd:
+    name: "{{ gitlab_runner_systemd_service }}"
+    state: started
+    enabled: true
+  register: _systemd_service_state
+
+- name: "Systemd: Display service state"
+  ansible.builtin.debug:
+    msg: "Service '{{ gitlab_runner_systemd_service }}' is {{ _systemd_service_state.state | default('unknown') }}."
+    verbosity: 1
+
+...

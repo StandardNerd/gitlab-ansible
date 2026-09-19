@@ -1,0 +1,40 @@
+#SPDX-License-Identifier: MIT-0
+---
+# tasks/assert.yml — validate required variables before any action
+
+- name: "Assert: gitlab_url is defined and non-empty"
+  ansible.builtin.assert:
+    that:
+      - gitlab_url is defined
+      - gitlab_url | length > 0
+    fail_msg: >
+      'gitlab_url' must be set to the URL of your GitLab instance.
+      Example: gitlab_url: "https://gitlab.example.com"
+
+- name: "Assert: registration token is defined when no runner token is provided"
+  ansible.builtin.assert:
+    that:
+      - gitlab_runner_registration_token is defined
+      - gitlab_runner_registration_token | length > 0
+      - gitlab_runner_registration_token != "REPLACE_ME"
+    fail_msg: >
+      'gitlab_runner_registration_token' must be set to the registration token
+      from your GitLab instance (Admin > CI/CD > Runners).
+      Use Ansible Vault to encrypt this value.
+  when: gitlab_runner_token | length == 0
+
+- name: "Assert: concurrent jobs value is a positive integer"
+  ansible.builtin.assert:
+    that:
+      - gitlab_runner_concurrent | int > 0
+    fail_msg: "'gitlab_runner_concurrent' must be a positive integer."
+
+- name: "Assert: executor is a supported value"
+  ansible.builtin.assert:
+    that:
+      - gitlab_runner_executor in ["shell", "docker", "docker+machine", "custom"]
+    fail_msg: >
+      'gitlab_runner_executor' must be one of: shell, docker, docker+machine, custom.
+      Received: {{ gitlab_runner_executor }}
+
+...

@@ -1,0 +1,94 @@
+#SPDX-License-Identifier: MIT-0
+---
+# tasks/container.yml — pull the runner image and manage the container lifecycle
+
+# ---------------------------------------------------------------------------
+# Pull image
+# ---------------------------------------------------------------------------
+- name: "Container: Pull GitLab Runner image"
+  containers.podman.podman_image:
+    name: "{{ gitlab_runner_image }}"
+    state: present
+  register: _runner_image_pull
+
+- name: "Container: Show image pull result"
+  ansible.builtin.debug:
+    msg: "Image {{ gitlab_runner_image }} — updated: {{ _runner_image_pull.changed }}"
+    verbosity: 1
+
+# ---------------------------------------------------------------------------
+# Build the volume list: config dir + builds + cache + optional podman socket
+# ---------------------------------------------------------------------------
+- name: "Container: Assemble bind-mount list"
+  ansible.builtin.set_fact:
+    _runner_volumes: >-
+      {{
+        [
+          gitlab_runner_config_dir ~ ':/etc/gitlab-runner:Z',
+          gitlab_runner_builds_dir ~ ':/builds:Z',
+          gitlab_runner_cache_dir  ~ ':/cache:Z'
+        ]
+        + ([ _podman_socket_path ~ ':' ~ _podman_socket_path ]
+           if gitlab_runner_enable_podman_socket | bool else [])
+        + gitlab_runner_volumes
+      }}
+
+# ---------------------------------------------------------------------------
+# Check if the container already exists
+# ---------------------------------------------------------------------------
+- name: "Container: Inspect existing runner container"
+  ansible.builtin.command: >
+    podman inspect --format "{{ '{{' }}.State.Status{{ '}}' }}" {{ gitlab_runner_container_name }}
+  register: _container_status
+  changed_when: false
+  failed_when: false   # Non-zero when container does not exist — handled below
+
+- name: "Container: Set fact — container exists"
+  ansible.builtin.set_fact:
+    _container_exists: "{{ _container_status.rc == 0 }}"
+
+# ---------------------------------------------------------------------------
+# Remove stale container when the image was updated (force recreation)
+# ---------------------------------------------------------------------------
+- name: "Container: Remove outdated container after image update"
+  containers.podman.podman_container:
+    name: "{{ gitlab_runner_container_name }}"
+    state: absent
+  when:
+    - _container_exists | bool
+    - _runner_image_pull.changed | bool
+
+# ---------------------------------------------------------------------------
+# Create / ensure the container is running
+# ---------------------------------------------------------------------------
+- name: "Container: Create and start GitLab Runner container"
+  containers.podman.podman_container:
+    name: "{{ gitlab_runner_container_name }}"
+    image: "{{ gitlab_runner_image }}"
+    state: started
+    restart_policy: "{{ gitlab_runner_restart_policy }}"
+    detach: true
+    privileged: "{{ gitlab_runner_privileged | bool }}"
+    volumes: "{{ _runner_volumes }}"
+    env: >-
+      {{
+        dict(gitlab_runner_container_env
+             | map('split', '=')
+             | map('list')
+             | map('batch', 2)
+             | map('first'))
+        if gitlab_runner_container_env | length > 0
+        else {}
+      }}
+    user: "{{ gitlab_runner_container_user | default(omit) }}"
+  register: _runner_container
+  notify: "Restart gitlab-runner container"
+
+- name: "Container: Display runner container status"
+  ansible.builtin.debug:
+    msg: >
+      Container '{{ gitlab_runner_container_name }}' is
+      {{ _runner_container.container.State.Status | default('unknown') }}.
+    verbosity: 1
+
+...

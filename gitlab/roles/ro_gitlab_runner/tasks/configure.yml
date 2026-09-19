@@ -1,0 +1,48 @@
+#SPDX-License-Identifier: MIT-0
+---
+# tasks/configure.yml — create directories and render config.toml
+
+- name: "Configure: Create GitLab Runner config directory"
+  ansible.builtin.file:
+    path: "{{ gitlab_runner_config_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0750"
+
+- name: "Configure: Create builds directory"
+  ansible.builtin.file:
+    path: "{{ gitlab_runner_builds_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: "Configure: Create cache directory"
+  ansible.builtin.file:
+    path: "{{ gitlab_runner_cache_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+# Render config.toml only when the file does not yet exist OR when the runner
+# is not registered (token absent).  Once the runner is registered,
+# GitLab Runner rewrites the file — we avoid overwriting it on every run.
+- name: "Configure: Check if config.toml already exists"
+  ansible.builtin.stat:
+    path: "{{ _runner_config_path }}"
+  register: _config_toml_stat
+
+- name: "Configure: Render config.toml template"
+  ansible.builtin.template:
+    src: "config.toml.j2"
+    dest: "{{ _runner_config_path }}"
+    owner: root
+    group: root
+    mode: "0640"
+    backup: true
+  when: not _config_toml_stat.stat.exists
+  notify: "Restart gitlab-runner container"
+
+...

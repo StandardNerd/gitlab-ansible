@@ -1,0 +1,76 @@
+#SPDX-License-Identifier: MIT-0
+---
+# tasks/register.yml — register the runner with the GitLab instance
+
+# ---------------------------------------------------------------------------
+# Detect whether the runner is already registered by inspecting config.toml.
+# A registered runner always has a [[runners]] section with a non-empty token.
+# ---------------------------------------------------------------------------
+- name: "Register: Read config.toml to detect existing registration"
+  ansible.builtin.slurp:
+    src: "{{ _runner_config_path }}"
+  register: _config_toml_raw
+  failed_when: false
+
+- name: "Register: Parse runner token from config.toml"
+  ansible.builtin.set_fact:
+    _existing_runner_token: >-
+      {{
+        (_config_toml_raw.content | b64decode)
+        | regex_search('token\s*=\s*"([^"]+)"', '\1')
+        | first
+        | default('')
+      }}
+  when: _config_toml_raw.content is defined
+
+- name: "Register: Set _existing_runner_token to empty when config absent"
+  ansible.builtin.set_fact:
+    _existing_runner_token: ""
+  when: _config_toml_raw.content is not defined
+
+# ---------------------------------------------------------------------------
+# Register only when:
+#   - no token found in config.toml  AND
+#   - no pre-existing token was supplied via gitlab_runner_token
+# ---------------------------------------------------------------------------
+- name: "Register: Register runner with GitLab"
+  ansible.builtin.command: >
+    podman exec {{ gitlab_runner_container_name }}
+    gitlab-runner register
+    --non-interactive
+    --url "{{ gitlab_url }}"
+    --registration-token "{{ gitlab_runner_registration_token }}"
+    --executor "{{ gitlab_runner_executor }}"
+    --description "{{ gitlab_runner_name }}"
+    --tag-list "{{ gitlab_runner_tags }}"
+    --run-untagged="{{ gitlab_runner_run_untagged | lower }}"
+    --locked="{{ gitlab_runner_locked | lower }}"
+    {% if gitlab_runner_executor == 'docker' %}
+    --docker-image "{{ gitlab_runner_default_image }}"
+    --docker-privileged="{{ gitlab_runner_privileged | lower }}"
+    {% for vol in gitlab_runner_volumes %}
+    --docker-volumes "{{ vol }}"
+    {% endfor %}
+    {% endif %}
+  register: _registration_result
+  changed_when: "'Runner registered successfully' in _registration_result.stdout"
+  failed_when:
+    - _registration_result.rc != 0
+    - "'already registered' not in _registration_result.stderr | default('')"
+  when:
+    - _existing_runner_token | length == 0
+    - gitlab_runner_token | length == 0
+  no_log: true   # Suppress token from logs
+
+- name: "Register: Display registration outcome"
+  ansible.builtin.debug:
+    msg: >-
+      {% if _existing_runner_token | length > 0 %}
+      Runner is already registered (token found in config.toml). Skipping registration.
+      {% elif _registration_result is skipped %}
+      Registration skipped — a pre-existing token was supplied via 'gitlab_runner_token'.
+      {% else %}
+      Runner registered successfully with GitLab at {{ gitlab_url }}.
+      {% endif %}
+
+...

@@ -1,6 +1,6 @@
 # GitLab Ansible Automation
 
-Ansible playbooks and roles designed to automate the installation, configuration, and provisioning of a GitLab Server (GitLab CE) on Enterprise Linux (RHEL 9 / 10).
+Ansible playbooks and roles designed to automate the installation, configuration, and provisioning of a **GitLab Server** (GitLab CE) and **GitLab Runners** on Enterprise Linux (RHEL 9 / 10) and other Linux distributions.
 
 ---
 
@@ -15,6 +15,8 @@ Ansible playbooks and roles designed to automate the installation, configuration
   - [3. Running the Playbook](#3-running-the-playbook)
 - [Playbooks](#playbooks)
 - [Role: `ro_gitlab_present`](#role-ro_gitlab_present)
+- [Role: `ro_gitlab_runner`](#role-ro_gitlab_runner)
+- [Documentation](#documentation)
 - [Development Environment](#development-environment)
 - [License](#license)
 
@@ -30,6 +32,7 @@ This repository provides an automated workflow to deploy and configure GitLab CE
 - **GitLab Installation**: Checks package facts and installs GitLab CE directly via DNF.
 - **Service Configuration**: Renders `gitlab.rb` configuration, manages GitLab licensing, triggers `gitlab-ctl reconfigure` asynchronously, and validates service health through readiness endpoints (`/-/readiness`).
 - **Post-Install Customization**: Uses `gitlab-rails runner` with custom Ruby scripts to automate post-installation settings, such as administrative access token creation and branding assets.
+- **GitLab Runner (Podman)**: Installs Podman on the target VM, pulls the GitLab Runner container image, registers the runner with your GitLab instance, and wires it to systemd for boot persistence — all idempotently.
 - **Containerized Dev Environment**: Includes a VS Code Dev Container configured with the official Ansible Execution Environment (`quay.io/ansible/creator-ee:latest`).
 
 ---
@@ -38,22 +41,33 @@ This repository provides an automated workflow to deploy and configure GitLab CE
 
 ```text
 gitlab-ansible/
-├── LICENSE                     # MIT License
-├── README.md                   # Project documentation (this file)
+├── LICENSE                          # MIT License
+├── README.md                        # Project documentation (this file)
+├── docs/
+│   └── WALKTHROUGH_gitlab_runner.md # Step-by-step runner deployment guide
 └── gitlab/
-    ├── .devcontainer/          # Dev container setup (Dockerfile & devcontainer.json)
+    ├── .devcontainer/               # Dev container setup (Dockerfile & devcontainer.json)
     ├── inventory/
-    │   └── hosts.yml           # Host inventory and connection details
-    ├── credentials.yml         # Ansible Vault encrypted secrets
-    ├── pb_gitlab_present.yml   # Main playbook to deploy GitLab
-    ├── pb_get_hostname.yml     # Diagnostic playbook to test connectivity
-    ├── pb_test_ansible_dev_env.yml # Environment validation playbook
+    │   └── hosts.yml                # Host inventory and connection details
+    ├── credentials.yml              # Ansible Vault encrypted secrets
+    ├── pb_gitlab_present.yml        # Playbook: deploy GitLab CE server
+    ├── pb_gitlab_runner.yml         # Playbook: deploy GitLab Runner (Podman)
+    ├── pb_get_hostname.yml          # Diagnostic playbook to test connectivity
+    ├── pb_test_ansible_dev_env.yml  # Environment validation playbook
     └── roles/
-        └── ro_gitlab_present/  # Primary role managing GitLab lifecycle
-            ├── defaults/       # Default variables (ports, URLs, LDAP config)
-            ├── files/          # Static assets (favicons, logos)
-            ├── tasks/          # Execution phases (prepare, install, reconfigure, etc.)
-            └── templates/      # Jinja2 templates (gitlab.rb.j2, Ruby scripts)
+        ├── ro_gitlab_present/       # Role: GitLab CE server lifecycle
+        │   ├── defaults/            # Default variables (ports, URLs, LDAP config)
+        │   ├── files/               # Static assets (favicons, logos)
+        │   ├── tasks/               # Execution phases (prepare, install, reconfigure, etc.)
+        │   └── templates/           # Jinja2 templates (gitlab.rb.j2, Ruby scripts)
+        └── ro_gitlab_runner/        # Role: GitLab Runner via Podman
+            ├── defaults/            # All user-configurable variables
+            ├── vars/                # Internal role variables (OS package maps, paths)
+            ├── tasks/               # Phases: assert, install, configure, container, register, systemd
+            ├── templates/           # config.toml.j2
+            ├── handlers/            # Container restart & systemd reload
+            ├── meta/                # Galaxy metadata and platform matrix
+            └── tests/               # Smoke-test playbook and inventory
 ```
 
 ---
@@ -64,10 +78,19 @@ gitlab-ansible/
   - Ansible 2.14+ (or use the included [Dev Container](#development-environment))
   - Python 3.9+
   - SSH key or password-based authentication (`sshpass` if using passwords)
-- **Target Host**:
+  - Ansible collections: `containers.podman`, `community.general`, `ansible.posix` (required by `ro_gitlab_runner`)
+    ```bash
+    ansible-galaxy collection install containers.podman community.general ansible.posix
+    ```
+- **Target Host (GitLab Server)**:
   - RHEL 9 / 10 or compatible Enterprise Linux distribution
   - Sudo/root access (`ansible_become: true`)
   - Minimum hardware requirements for GitLab (recommended: 4+ CPU cores, 4GB+ RAM)
+- **Target Host (GitLab Runner)**:
+  - RHEL 9/10, Ubuntu 22.04/24.04, Debian 12, or openSUSE/SLES
+  - Sudo/root access (`ansible_become: true`)
+  - Outbound network access to your GitLab instance and to `docker.io` (to pull the runner image)
+  - Minimum: 2 CPU cores, 2GB RAM (scale with `gitlab_runner_concurrent`)
 
 ---
 

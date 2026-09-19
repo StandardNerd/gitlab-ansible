@@ -1,0 +1,36 @@
+#SPDX-License-Identifier: MIT-0
+---
+# tests/test.yml
+#
+# Smoke-test playbook for ro_gitlab_runner.
+# Run with:
+#   ansible-playbook tests/test.yml \
+#     -i tests/inventory \
+#     -e "gitlab_url=https://gitlab.example.com" \
+#     -e "gitlab_runner_registration_token=<TOKEN>"
+#
+# For a full integration test, point to a real target host:
+#   ansible-playbook tests/test.yml \
+#     -i ../../../inventory/hosts.yml \
+#     -l runner_hosts \
+#     -e @tests/test_vars.yml \
+#     --ask-vault-pass
+
+- name: "Test: ro_gitlab_runner role"
+  hosts: localhost
+  gather_facts: true
+  become: true
+  vars:
+    # Override defaults for testing purposes only
+    gitlab_url: "http://localhost"
+    gitlab_runner_registration_token: "TEST_TOKEN"
+    gitlab_runner_name: "test-runner"
+    gitlab_runner_executor: "shell"
+    gitlab_runner_concurrent: 1
+    gitlab_runner_systemd_enabled: false
+    # Skip actual registration against a real GitLab instance in unit tests
+    gitlab_runner_token: "DUMMY_TOKEN_FOR_TESTING"
+  roles:
+    - role: ro_gitlab_runner
+
+...

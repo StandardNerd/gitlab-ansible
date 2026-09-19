@@ -1,0 +1,33 @@
+#SPDX-License-Identifier: MIT-0
+galaxy_info:
+  author: "gitlab-ansible maintainers"
+  description: "Install and configure a GitLab Runner as a Podman container on RHEL / Debian / SUSE hosts"
+  company: ""
+  license: "MIT-0"
+  min_ansible_version: "2.14"
+  platforms:
+    - name: EL          # RHEL, CentOS, Rocky, AlmaLinux
+      versions:
+        - "9"
+        - "10"
+    - name: Ubuntu
+      versions:
+        - "22.04"
+        - "24.04"
+    - name: Debian
+      versions:
+        - "12"
+  galaxy_tags:
+    - gitlab
+    - runner
+    - podman
+    - ci
+    - containers
+    - rhel
+
+dependencies: []
+  # No hard Galaxy dependencies.
+  # The role uses the following collections (must be installed on the control node):
+  #   - containers.podman  >= 1.10.0
+  #   - community.general  >= 6.0.0   (for zypper on SUSE)
+  #   - ansible.posix      >= 1.5.0
