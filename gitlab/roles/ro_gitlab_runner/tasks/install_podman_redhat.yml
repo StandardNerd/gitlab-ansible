@@ -1,0 +1,46 @@
+#SPDX-License-Identifier: MIT-0
+---
+# tasks/install_podman_redhat.yml
+
+- name: "Prepare: Gather package facts"
+  ansible.builtin.package_facts:
+    manager: auto
+
+- name: "Install: Install Podman packages (RedHat)"
+  ansible.builtin.dnf:
+    name: "{{ _podman_pkgs }}"
+    state: present
+
+- name: "Install: Install SELinux packages (RedHat)"
+  ansible.builtin.dnf:
+    name: "{{ _selinux_packages }}"
+    state: present
+  when: gitlab_runner_configure_selinux | bool
+
+- name: "Configure: Enable container_manage_cgroup SELinux boolean"
+  ansible.posix.seboolean:
+    name: container_manage_cgroup
+    state: true
+    persistent: true
+  when: gitlab_runner_configure_selinux | bool
+
+- name: "Configure: Enable and start podman.socket (root)"
+  ansible.builtin.systemd:
+    name: podman.socket
+    state: started
+    enabled: true
+    daemon_reload: true
+  when: gitlab_runner_enable_podman_socket | bool
+
+- name: "Verify: Podman is functional"
+  ansible.builtin.command: podman info
+  register: _podman_info
+  changed_when: false
+  failed_when: _podman_info.rc != 0
+
+- name: "Verify: Display version"
+  ansible.builtin.debug:
+    msg: "Podman installed successfully. Info: {{ _podman_info.stdout_lines[0] }}"
+    verbosity: 1
+
+...

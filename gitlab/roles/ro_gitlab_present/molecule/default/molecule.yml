@@ -1,0 +1,31 @@
+#SPDX-License-Identifier: MIT-0
+---
+dependency:
+  name: galaxy
+driver:
+  name: docker
+platforms:
+  - name: rhel9
+    image: geerlingguy/docker-almalinux9-ansible:latest
+    pre_build_image: true
+    privileged: true
+    command: /usr/sbin/init
+    tmpfs:
+      - /run
+      - /tmp
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+  - name: ubuntu24
+    image: geerlingguy/docker-ubuntu2404-ansible:latest
+    pre_build_image: true
+    privileged: true
+    command: /lib/systemd/systemd
+    tmpfs:
+      - /run
+      - /tmp
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+provisioner:
+  name: ansible
+verifier:
+  name: ansible

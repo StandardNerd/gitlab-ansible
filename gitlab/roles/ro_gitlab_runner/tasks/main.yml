@@ -3,22 +3,30 @@
 # tasks/main.yml — entry point for ro_gitlab_runner
 
 - name: "Main: Assert required variables are defined"
-  include_tasks: "assert.yml"
+  ansible.builtin.include_tasks: "assert.yml"
 
-- name: "Main: Install Podman and system dependencies"
-  include_tasks: "install_podman.yml"
+- name: "Main: Include OS-specific variables"
+  ansible.builtin.include_vars: "{{ ansible_os_family }}.yml"
+
+- name: "Main: Install Podman and system dependencies (RedHat)"
+  ansible.builtin.include_tasks: "install_podman_redhat.yml"
+  when: ansible_os_family == 'RedHat'
+
+- name: "Main: Install Podman and system dependencies (Debian)"
+  ansible.builtin.include_tasks: "install_podman_debian.yml"
+  when: ansible_os_family == 'Debian'
 
 - name: "Main: Create required directories and configuration"
-  include_tasks: "configure.yml"
+  ansible.builtin.include_tasks: "configure.yml"
 
 - name: "Main: Pull GitLab Runner image and start container"
-  include_tasks: "container.yml"
+  ansible.builtin.include_tasks: "container.yml"
 
 - name: "Main: Register runner with GitLab"
-  include_tasks: "register.yml"
+  ansible.builtin.include_tasks: "register.yml"
 
 - name: "Main: Configure systemd unit for the runner container"
-  include_tasks: "systemd.yml"
+  ansible.builtin.include_tasks: "systemd.yml"
   when: gitlab_runner_systemd_enabled | bool
 
 ...

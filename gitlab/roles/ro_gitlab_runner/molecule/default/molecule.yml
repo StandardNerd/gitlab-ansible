@@ -1,0 +1,24 @@
+---
+dependency:
+  name: galaxy
+driver:
+  name: podman
+platforms:
+  - name: rhel9
+    image: registry.access.redhat.com/ubi9/ubi-init:latest
+    privileged: true
+    pre_build_image: true
+    cgroupns_mode: host
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+  - name: ubuntu-noble
+    image: docker.io/geerlingguy/docker-ubuntu2404-ansible:latest
+    privileged: true
+    pre_build_image: true
+    cgroupns_mode: host
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+provisioner:
+  name: ansible
+verifier:
+  name: ansible

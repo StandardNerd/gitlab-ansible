@@ -1,0 +1,10 @@
+#SPDX-License-Identifier: MIT-0
+---
+- name: "Assert: Validate required variables"
+  ansible.builtin.assert:
+    that:
+      - gls_domain is defined
+      - gls_external_url is defined
+      - gls_admin_password is defined
+    fail_msg: "Required variables gls_domain, gls_external_url, or gls_admin_password are not set."
+...

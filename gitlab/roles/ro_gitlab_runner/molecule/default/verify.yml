@@ -1,0 +1,22 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  tasks:
+    - name: Verify Podman is installed
+      ansible.builtin.command: podman --version
+      register: podman_version
+      changed_when: false
+      failed_when: podman_version.rc != 0
+
+    - name: Verify GitLab runner config directory exists
+      ansible.builtin.stat:
+        path: /etc/gitlab-runner
+      register: runner_dir
+      failed_when: not runner_dir.stat.isdir
+
+    - name: Verify GitLab runner config.toml exists
+      ansible.builtin.stat:
+        path: /etc/gitlab-runner/config.toml
+      register: runner_config
+      failed_when: not runner_config.stat.exists

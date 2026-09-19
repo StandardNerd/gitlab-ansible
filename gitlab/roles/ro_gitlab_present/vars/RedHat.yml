@@ -1,0 +1,21 @@
+#SPDX-License-Identifier: MIT-0
+---
+gls_os_packages:
+  - yum-utils
+  - tar
+  - tmux
+  - which
+  - lsof
+  - curl
+  - openssl
+  - postfix
+  - firewalld
+  - python3-cryptography
+  - python3-psycopg2
+  - postgresql
+
+gls_firewall_service: firewalld
+gls_web_ports:
+  - http
+  - https
+...

@@ -1,27 +1,26 @@
+#SPDX-License-Identifier: MIT-0
 ---
-- name: "HANDLER: Start HTTPS"
-  ansible.builtin.systemd:
-    name: sshd
-    daemon_reload: true 
-    enabled: true 
-    state: started
-  listen: "start sshd"
+- name: "Reconfigure GitLab"
+  ansible.builtin.command: "gitlab-ctl reconfigure"
+  changed_when: true
 
-- name: "HANDLER: Stop HTTPS"
-  ansible.builtin.systemd:
-    name: sshd
-    state: stopped
-  listen: "stop sshd"
+- name: "Restart GitLab"
+  ansible.builtin.command: "gitlab-ctl restart"
+  changed_when: true
 
-- name: "HANDLER: Restart HTTPS"
-  ansible.builtin.systemd:
-    name: sshd
-    state: restarted
-  listen: "restart sshd"
-
-- name: "HANDLER: Reload firewalld service"
-  ansible.builtin.systemd:
+- name: "Reload firewalld"
+  ansible.builtin.service:
     name: firewalld
     state: reloaded
-  listen: firewalld_reload
+  when: ansible_os_family == 'RedHat'
+
+- name: "Reload ufw"
+  community.general.ufw:
+    state: reloaded
+  when: ansible_os_family == 'Debian'
+
+- name: Restart sshd
+  ansible.builtin.service:
+    name: sshd
+    state: restarted
 ...

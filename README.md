@@ -24,16 +24,19 @@ Ansible playbooks and roles designed to automate the installation, configuration
 
 ## Overview
 
-This repository provides an automated workflow to deploy and configure GitLab CE on RHEL-based hosts using Ansible.
+This repository provides an automated workflow to deploy and configure GitLab CE and GitLab Runners on **RHEL 9** and **Ubuntu Noble (24.04)** hosts using Ansible. Both roles auto-detect the target OS and apply the correct packages, firewall rules, and security policies.
 
 ### Key Capabilities
 
-- **Host Preparation**: Automatically verifies DNF release version, installs required dependencies (`python3-libdnf`, `curl`, `postfix`, `firewalld`, `postgresql`, etc.), and configures firewall rules for HTTP/HTTPS.
-- **GitLab Installation**: Checks package facts and installs GitLab CE directly via DNF.
-- **Service Configuration**: Renders `gitlab.rb` configuration, manages GitLab licensing, triggers `gitlab-ctl reconfigure` asynchronously, and validates service health through readiness endpoints (`/-/readiness`).
-- **Post-Install Customization**: Uses `gitlab-rails runner` with custom Ruby scripts to automate post-installation settings, such as administrative access token creation and branding assets.
-- **GitLab Runner (Podman)**: Installs Podman on the target VM, pulls the GitLab Runner container image, registers the runner with your GitLab instance, and wires it to systemd for boot persistence — all idempotently.
-- **Containerized Dev Environment**: Includes a VS Code Dev Container configured with the official Ansible Execution Environment (`quay.io/ansible/creator-ee:latest`).
+- **Cross-Platform**: All roles auto-detect the target OS (`ansible_os_family`) and dispatch to OS-specific task files — RHEL uses `dnf`/`firewalld`/SELinux, Ubuntu uses `apt`/`ufw`/AppArmor.
+- **Host Preparation**: Installs required dependencies and configures firewall rules for HTTP/HTTPS on both RHEL (`firewalld`) and Ubuntu (`ufw`).
+- **GitLab Installation**: Adds the official GitLab repository for the target OS and installs GitLab CE/EE via the native package manager.
+- **SSL/TLS**: Generates self-signed certificates or deploys user-provided certs. Configurable via `gls_ssl_enabled` and `gls_ssl_self_signed`.
+- **Service Configuration**: Renders `gitlab.rb` configuration, manages GitLab licensing, triggers `gitlab-ctl reconfigure`, and validates service health through readiness endpoints.
+- **Post-Install Customization**: Uses `gitlab-rails runner` with custom Ruby scripts to automate post-installation settings.
+- **GitLab Runner (Podman)**: Installs Podman on the target VM, pulls the GitLab Runner container image, registers the runner, and wires it to systemd — with SELinux policies on RHEL and AppArmor on Ubuntu.
+- **Molecule Testing**: Both roles include Molecule scenarios that test against RHEL 9 and Ubuntu Noble containers.
+- **Containerized Dev Environment**: Includes a VS Code Dev Container configured with the official Ansible Execution Environment.
 
 ---
 
@@ -56,18 +59,45 @@ gitlab-ansible/
     ├── pb_test_ansible_dev_env.yml  # Environment validation playbook
     └── roles/
         ├── ro_gitlab_present/       # Role: GitLab CE server lifecycle
-        │   ├── defaults/            # Default variables (ports, URLs, LDAP config)
-        │   ├── files/               # Static assets (favicons, logos)
-        │   ├── tasks/               # Execution phases (prepare, install, reconfigure, etc.)
-        │   └── templates/           # Jinja2 templates (gitlab.rb.j2, Ruby scripts)
+        │   ├── defaults/main.yml    # Configurable variables (SSL, LDAP, DB, etc.)
+        │   ├── vars/                # OS-specific vars
+        │   │   ├── main.yml         # Shared internal variables
+        │   │   ├── RedHat.yml       # RHEL packages, firewalld
+        │   │   └── Debian.yml       # Ubuntu packages, ufw
+        │   ├── tasks/               # OS-dispatched task phases
+        │   │   ├── main.yml         # Entry point (OS auto-detection)
+        │   │   ├── assert.yml       # Pre-flight validation
+        │   │   ├── prepare_redhat.yml
+        │   │   ├── prepare_debian.yml
+        │   │   ├── install_redhat.yml
+        │   │   ├── install_debian.yml
+        │   │   ├── ssl.yml          # Self-signed or user-provided certs
+        │   │   ├── configure.yml    # gitlab.rb render + reconfigure
+        │   │   ├── gitlab_ruby_configuration.yml
+        │   │   └── cleanup.yml
+        │   ├── templates/           # gitlab.rb.j2, Ruby scripts
+        │   ├── handlers/main.yml    # Reconfigure, restart, firewall reload
+        │   ├── molecule/default/    # Molecule test scenarios (RHEL 9 + Ubuntu)
+        │   └── files/               # Static assets (favicons, logos)
         └── ro_gitlab_runner/        # Role: GitLab Runner via Podman
-            ├── defaults/            # All user-configurable variables
-            ├── vars/                # Internal role variables (OS package maps, paths)
-            ├── tasks/               # Phases: assert, install, configure, container, register, systemd
-            ├── templates/           # config.toml.j2
-            ├── handlers/            # Container restart & systemd reload
-            ├── meta/                # Galaxy metadata and platform matrix
-            └── tests/               # Smoke-test playbook and inventory
+            ├── defaults/main.yml    # All user-configurable variables
+            ├── vars/                # OS-specific vars
+            │   ├── main.yml         # Shared internal variables
+            │   ├── RedHat.yml       # RHEL Podman packages, SELinux
+            │   └── Debian.yml       # Ubuntu Podman packages, AppArmor
+            ├── tasks/               # OS-dispatched task phases
+            │   ├── main.yml         # Entry point (OS auto-detection)
+            │   ├── assert.yml
+            │   ├── install_podman_redhat.yml
+            │   ├── install_podman_debian.yml
+            │   ├── configure.yml
+            │   ├── container.yml
+            │   ├── register.yml
+            │   └── systemd.yml
+            ├── templates/config.toml.j2
+            ├── handlers/main.yml
+            ├── molecule/default/    # Molecule test scenarios (RHEL 9 + Ubuntu)
+            └── tests/
 ```
 
 ---
@@ -78,19 +108,17 @@ gitlab-ansible/
   - Ansible 2.14+ (or use the included [Dev Container](#development-environment))
   - Python 3.9+
   - SSH key or password-based authentication (`sshpass` if using passwords)
-  - Ansible collections: `containers.podman`, `community.general`, `ansible.posix` (required by `ro_gitlab_runner`)
+  - Ansible collections (install before first use):
     ```bash
-    ansible-galaxy collection install containers.podman community.general ansible.posix
+    ansible-galaxy collection install containers.podman community.general community.crypto ansible.posix
     ```
-- **Target Host (GitLab Server)**:
-  - RHEL 9 / 10 or compatible Enterprise Linux distribution
+- **Target Host (GitLab Server or Runner)**:
+  - **RHEL 9** / Rocky / AlmaLinux 9, or **Ubuntu Noble (24.04)** / Debian 12
   - Sudo/root access (`ansible_become: true`)
-  - Minimum hardware requirements for GitLab (recommended: 4+ CPU cores, 4GB+ RAM)
-- **Target Host (GitLab Runner)**:
-  - RHEL 9/10, Ubuntu 22.04/24.04, Debian 12, or openSUSE/SLES
-  - Sudo/root access (`ansible_become: true`)
-  - Outbound network access to your GitLab instance and to `docker.io` (to pull the runner image)
-  - Minimum: 2 CPU cores, 2GB RAM (scale with `gitlab_runner_concurrent`)
+  - Internet access (to add GitLab repo and pull container images)
+  - For GitLab Server: 4+ CPU cores, 4 GB+ RAM recommended
+  - For GitLab Runner: 2+ CPU cores, 2 GB+ RAM (scale with `gitlab_runner_concurrent`)
+
 
 ---
 
@@ -137,7 +165,8 @@ ansible-playbook pb_gitlab_present.yml \
 
 | Playbook | Description |
 |---|---|
-| [`pb_gitlab_present.yml`](gitlab/pb_gitlab_present.yml) | Main playbook that invokes `ro_gitlab_present` to deploy and configure GitLab. |
+| [`pb_gitlab_present.yml`](gitlab/pb_gitlab_present.yml) | Deploy and configure a GitLab CE server (invokes `ro_gitlab_present`). |
+| [`pb_gitlab_runner.yml`](gitlab/pb_gitlab_runner.yml) | Deploy a GitLab Runner as a Podman container (invokes `ro_gitlab_runner`). |
 | [`pb_get_hostname.yml`](gitlab/pb_get_hostname.yml) | Quick connectivity verification playbook to test host access and reachability. |
 | [`pb_test_ansible_dev_env.yml`](gitlab/pb_test_ansible_dev_env.yml) | Validates local Ansible version, Python interpreter, OS environment, and write permissions. |
 
@@ -145,15 +174,80 @@ ansible-playbook pb_gitlab_present.yml \
 
 ## Role: `ro_gitlab_present`
 
-The main role is divided into structured task stages:
+Install and configure **GitLab CE/EE** on RHEL 9 or Ubuntu Noble. The role auto-detects the target OS and dispatches to OS-specific task files.
 
-1. **`prepare.yml`**: Verifies system prerequisites, installs system packages, enables and opens ports in `firewalld`.
-2. **`install.yml`**: Verifies if GitLab is already present; if not, installs the specified RPM/package via DNF.
-3. **`gitlab_base_configuration.yml` / `reconfigure.yml`**: Deploys `gitlab.rb.j2`, handles licensing, triggers `gitlab-ctl reconfigure`, and polls the readiness endpoint (`/-/readiness`).
-4. **`gitlab_ruby_configuration.yml`**: Runs `rails_configuration_steps.rb` through `gitlab-rails runner` for initial account setup and customization.
-5. **`cleanup.yml`**: Cleans up temporary installation artifacts.
+| Supported OS | Package manager | Firewall | Security |
+|---|---|---|---|
+| RHEL 9 / Rocky / AlmaLinux 9 | `dnf` | `firewalld` | SELinux |
+| Ubuntu Noble 24.04 / Debian 12 | `apt` | `ufw` | AppArmor |
 
-Key role configuration defaults can be viewed and overridden in [`roles/ro_gitlab_present/defaults/main.yml`](gitlab/roles/ro_gitlab_present/defaults/main.yml).
+The role is divided into structured task phases:
+
+1. **`assert.yml`**: Validates that `gls_domain`, `gls_external_url`, and `gls_admin_password` are set.
+2. **`prepare_redhat.yml` / `prepare_debian.yml`**: Installs OS-specific dependencies, configures firewall rules, and starts required services.
+3. **`install_redhat.yml` / `install_debian.yml`**: Adds the official GitLab repository and installs the package via the native package manager. Idempotent — skips if already installed.
+4. **`ssl.yml`**: Creates the SSL directory; generates a self-signed certificate (using `community.crypto`) or copies user-provided certs. Controlled by `gls_ssl_enabled` and `gls_ssl_self_signed`.
+5. **`configure.yml`**: Renders `gitlab.rb.j2`, copies the license file, flushes the `Reconfigure GitLab` handler, and waits for the readiness endpoint.
+6. **`gitlab_ruby_configuration.yml`**: Runs `rails_configuration_steps.rb` through `gitlab-rails runner` for initial account setup.
+7. **`cleanup.yml`**: Removes temporary installation artifacts.
+
+Key role configuration defaults can be viewed and overridden in [`roles/ro_gitlab_present/defaults/main.yml`](gitlab/roles/ro_gitlab_present/defaults/main.yml). Full variable documentation is in [`roles/ro_gitlab_present/README.md`](gitlab/roles/ro_gitlab_present/README.md).
+
+
+---
+
+## Role: `ro_gitlab_runner`
+
+Install and configure a GitLab Runner running inside a **Podman** container, with systemd integration for boot persistence. The role is fully idempotent and supports RHEL, Ubuntu, Debian, and openSUSE.
+
+The role is divided into six task phases:
+
+1. **`assert.yml`**: Validates required variables before any system change is made.
+2. **`install_podman.yml`**: Installs Podman and supporting packages using the appropriate package manager for the target OS family (`dnf` / `apt` / `zypper`). Activates `podman.socket`.
+3. **`configure.yml`**: Creates host directories for config, builds, and cache. Renders `config.toml` from a Jinja2 template on first run only.
+4. **`container.yml`**: Pulls the runner OCI image and creates/starts the Podman container. Automatically recreates the container when the image digest changes.
+5. **`register.yml`**: Registers the runner with GitLab using `gitlab-runner register`. Parses the existing `config.toml` first — skips registration if a token is already present (preventing duplicate runners).
+6. **`systemd.yml`**: Generates a systemd unit file via `podman generate systemd` and enables the service for automatic startup after reboots.
+
+Key role configuration defaults can be viewed and overridden in [`roles/ro_gitlab_runner/defaults/main.yml`](gitlab/roles/ro_gitlab_runner/defaults/main.yml).
+
+For a complete deployment walkthrough, see [docs/WALKTHROUGH_gitlab_runner.md](docs/WALKTHROUGH_gitlab_runner.md).
+
+### Quick deploy
+
+```bash
+# 1. Install required collections
+ansible-galaxy collection install containers.podman community.general ansible.posix
+
+# 2. Encrypt your runner registration token
+ansible-vault encrypt_string 'glrt-xxxxxxxxxxxx' \
+  --name 'runner_registration_token' >> gitlab/credentials.yml
+
+# 3. Add runner hosts to inventory, then deploy
+ansible-playbook gitlab/pb_gitlab_runner.yml \
+  -i gitlab/inventory/hosts.yml \
+  -l runner_hosts \
+  -e "gitlab_url=https://gitlab.example.com" \
+  --ask-vault-pass
+```
+
+### OS compatibility
+
+| OS Family | Package Manager | Podman packages |
+|---|---|---|
+| RHEL / Rocky / AlmaLinux 9–10 | `dnf` | `podman`, `podman-plugins`, `slirp4netns`, `fuse-overlayfs` |
+| Ubuntu 22.04 / 24.04, Debian 12 | `apt` | `podman`, `uidmap`, `slirp4netns`, `fuse-overlayfs` |
+| openSUSE / SLES | `zypper` | `podman` |
+
+---
+
+## Documentation
+
+| Document | Description |
+|---|---|
+| [`docs/WALKTHROUGH_gitlab_runner.md`](docs/WALKTHROUGH_gitlab_runner.md) | End-to-end step-by-step guide: prerequisites → inventory → vault → deploy → verify → day-2 ops and troubleshooting. |
+| [`roles/ro_gitlab_runner/README.md`](gitlab/roles/ro_gitlab_runner/README.md) | Full variable reference, executor examples, idempotency notes, and security guidance for the runner role. |
+| [`roles/ro_gitlab_present/README.md`](gitlab/roles/ro_gitlab_present/README.md) | Variable reference for the GitLab server role. |
 
 ---
 
@@ -169,6 +263,7 @@ A ready-to-use development environment is provided via `.devcontainer`:
 Open the project folder in VS Code and select **Reopen in Container** when prompted.
 
 ---
+
 
 ## License
 

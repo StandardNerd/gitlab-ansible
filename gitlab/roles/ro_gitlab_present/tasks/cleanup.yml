@@ -1,16 +1,15 @@
+#SPDX-License-Identifier: MIT-0
 ---
-- name: "Cleanup: Remove GitLab installation file"
+- name: "Cleanup: Remove GitLab installation files and scripts"
   ansible.builtin.file:
-    path: "/tmp/{{ item }}"
+    path: "{{ item }}"
     state: absent
   loop:
-    - "{{ gitlab_installation_file }}"
-    # - "{{ gitlab_license_file }}"
     - "/root/{{ gls_ruby_script }}"
 
-- name: "Remove temporary directory for scripts"
+- name: "Cleanup: Remove temporary directory for scripts"
   ansible.builtin.file:
     path: "{{ gitlab_rb_scripts_tempdir.path }}"
     state: absent
-
+  when: gitlab_rb_scripts_tempdir.path is defined
 ...

@@ -2,25 +2,6 @@
 ---
 # vars/main.yml — internal role variables (not intended to be overridden)
 
-# Mapping of OS family to the Podman package name and any extra dependencies.
-# Extend this map to add new distro families.
-_podman_packages:
-  RedHat:
-    - podman
-    - podman-plugins
-    - slirp4netns
-    - fuse-overlayfs
-  Debian:
-    - podman
-    - uidmap
-    - slirp4netns
-    - fuse-overlayfs
-  Suse:
-    - podman
-
-# Resolved package list for the current host
-_podman_pkgs: "{{ _podman_packages[ansible_os_family] | default(_podman_packages['RedHat']) }}"
-
 # Full path to the rendered config.toml inside the container
 _runner_config_path: "{{ gitlab_runner_config_dir }}/config.toml"
 

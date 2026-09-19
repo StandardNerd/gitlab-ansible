@@ -5,12 +5,16 @@ gitlab_rails['gitlab_signup_enabled'] = {{ gls_signup_enabled | lower }}
 
 letsencrypt['enable'] = false
 
-nginx['ssl_certificate'] = '/etc/gitlab/ssl/{{ gls_domain }}.{{ crt_format }}'
-# nginx['ssl_certificate'] = '/etc/gitlab/ssl/{{ gls_domain }}.crt'
-nginx['ssl_certificate_key'] = '/etc/gitlab/ssl/{{ gls_domain }}.key'
-# nginx['redirect_http_to_https'] = true
-nginx['http2_enabled'] = false
+{% if gls_ssl_enabled %}
+nginx['ssl_certificate'] = '{{ gls_ssl_cert_path }}'
+nginx['ssl_certificate_key'] = '{{ gls_ssl_key_path }}'
+nginx['redirect_http_to_https'] = {{ gls_redirect_http_to_https | lower }}
+nginx['http2_enabled'] = true
 nginx['ssl_protocols'] = 'TLSv1.3'
+{% else %}
+nginx['listen_https'] = false
+{% endif %}
+
 nginx['listen_addresses'] = ['0.0.0.0', '[::]']
 {% if gls_enable_internal_db %}
 # use interal Postgres DB
@@ -25,35 +29,34 @@ postgresql['password'] = "{{ gls_external_db_password }}"
 postgresql['database'] = "{{ gls_external_db_name }}"
 {% endif %}
 
-gitlab_rails["ldap_enabled"] = "{{ gls_ldap_enabled }}"
-gitlab_rails["ldap_servers"] = YAML. Load <<-'EOS'
+{% if gls_ldap_enabled %}
+gitlab_rails["ldap_enabled"] = true
+gitlab_rails["ldap_servers"] = YAML.load <<-'EOS'
   main: # 'main' is the Gitlab 'provider ID' of this LDAP server
   label: "{{ gls_ldap_label }}"
-  host: "{{ gls_ldap_host }}"
+  host: "{{ gls_ldap_host | default('ldap.example.com') }}"
   port: "{{ gls_ldap_port }}"
   uid: "{{ gls_ldap_uid }}"
   bind_dn: "{{ gls_ldap_bind_dn }}"
-  password: "{{ gls_ldap_password }}"
-  encryption: "{{ gls_ldap_encryption }}"
+  password: "{{ gls_ldap_bind_password }}"
+  encryption: "{{ gls_ldap_encryption | default('simple_tls') }}"
   verify_certificates: "{{ gls_ldap_verify_certificates | lower }}"
   smartcard_auth: "{{ gls_ldap_smartcard_auth | lower }}"
   active_directory: "{{ gls_ldap_active_directory | lower }}"
-  allow_username_or_email_login: "{{ gls_ldap_allow_username_or_email_login | lower }}"
+  allow_username_or_email_login: "{{ gls_ldap_allow_username_or_email | lower }}"
   lowercase_usernames: "{{ gls_ldap_lowercase_usernames | lower }}"
   block_auto_created_users: "{{ gls_ldap_block_auto_created_users | lower }}"
-  base: "{{ gls_ldap_base }}"
-  tls_options:
-    ca_file: "{{ gls_ldap_ca_certificate_file }}"
-    ssl_version: "{{ gls_ldap_ssl_version }}"
-    group_base: "{{ gls_ldap_group_base }}"
-    admin_group: "{{ gls_ldap_admin_group }}"
+  base: "{{ gls_ldap_group_base | default('') }}"
 EOS
 
-# gitlab_rails[log_level] = "debug"
-gitlab_rails["default_can_create_project"] = "{{ gls_ldap_can_create_project }}"
-gitlab_rails["default_can_create_group"] = "{{ gls_ldap_can_create_group }}"
-{% if molecule_test %}
-  gitlab_rails[ "monitoring_whitelist"] = ["{{ ip_address_v4 }}", "{{ enable_ip_list }}"]
+gitlab_rails["default_can_create_project"] = {{ gls_ldap_can_create_project | lower }}
+gitlab_rails["default_can_create_group"] = {{ gls_ldap_can_create_group | lower }}
 {% else %}
-  gitlab_rails["monitoring_whitelist"] = ["{{ ansible_host }}", "{{ enable_ip_list }}"]
+gitlab_rails["ldap_enabled"] = false
+{% endif %}
+
+{% if molecule_test %}
+gitlab_rails["monitoring_whitelist"] = ["127.0.0.1", "::1"]
+{% else %}
+gitlab_rails["monitoring_whitelist"] = ["{{ enable_ip_list }}", "127.0.0.1"]
 {% endif %}

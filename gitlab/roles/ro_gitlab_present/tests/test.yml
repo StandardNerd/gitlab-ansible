@@ -3,4 +3,8 @@
 - hosts: localhost
   remote_user: root
   roles:
-    - ro_gitlab_present
+    - role: ro_gitlab_present
+      vars:
+        gls_domain: test.local
+        gls_external_url: "https://test.local"
+        gls_admin_password: "admin"

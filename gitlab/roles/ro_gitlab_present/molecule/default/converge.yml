@@ -1,0 +1,14 @@
+#SPDX-License-Identifier: MIT-0
+---
+- name: Converge
+  hosts: all
+  tasks:
+    - name: "Include ro_gitlab_present"
+      ansible.builtin.include_role:
+        name: "ro_gitlab_present"
+      vars:
+        gls_domain: "molecule.local"
+        gls_external_url: "https://molecule.local"
+        gls_admin_password: "molecule_password"
+        molecule_test: true
+        gls_firewall_enabled: false

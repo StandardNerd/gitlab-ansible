@@ -126,4 +126,14 @@ gitlab_runner_log_level: "info"
 # Log format (runner | text | json)
 gitlab_runner_log_format: "runner"
 
+# ---------------------------------------------------------------------------
+# OS-Specific Security
+# ---------------------------------------------------------------------------
+
+# Enable SELinux policy configuration on RHEL
+gitlab_runner_configure_selinux: true
+
+# Enable AppArmor policy configuration on Ubuntu
+gitlab_runner_configure_apparmor: true
+
 ...

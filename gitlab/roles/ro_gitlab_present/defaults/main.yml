@@ -7,11 +7,22 @@ gitlab_license_file: "gitlab-license.json"
 gls_ruby_script: "rails_configuration_steps.rb"
 
 gls_redirect_http_to_https: true
-
 gls_signup_enabled: false
 
+# Package details
 gitlab_package_name: "gitlab-ce"
-gitlab_installation_file: "gitlab-ce-18.8.0-ce.0.el10.x86_64.rpm"
+gls_edition: "ce"
+gls_version: "latest"
+gls_firewall_enabled: true
+
+# SSL Configuration
+gls_ssl_enabled: true
+gls_ssl_cert_path: "/etc/gitlab/ssl/{{ gls_domain }}.crt"
+gls_ssl_key_path: "/etc/gitlab/ssl/{{ gls_domain }}.key"
+gls_ssl_self_signed: true
+crt_format: "crt"
+
+molecule_test: false
 
 gls_external_url: "http://{{ gls_domain }}"
 gls_sign_in_url: "http://{{ gls_domain }}/users/sign_in"
@@ -37,7 +48,7 @@ gls_ldap_enabled: true
 gls_ldap_label: LDAPS
 gls_ldap_port: '636'
 gls_ldap_uid: sAMAccountName
-gls_ldap_encryptionn: 'simple_tls'
+gls_ldap_encryption: 'simple_tls'
 gls_ldap_verify_certificates: true
 gls_ldap_smartcard_auth: false
 gls_ldap_active_directory: true

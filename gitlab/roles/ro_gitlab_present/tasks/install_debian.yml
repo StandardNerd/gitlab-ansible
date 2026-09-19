@@ -1,0 +1,25 @@
+#SPDX-License-Identifier: MIT-0
+---
+- name: "Install: Check installed packages"
+  ansible.builtin.package_facts:
+
+- name: "Install: Show installed GitLab version"
+  ansible.builtin.debug:
+    msg:
+      - "GitLab is already installed"
+      - "Version: {{ ansible_facts.packages[gitlab_package_name][0].version }}"
+  when: gitlab_package_name in ansible_facts.packages
+
+- name: "Install: Add GitLab APT repository"
+  ansible.builtin.shell: |
+    curl -sS https://packages.gitlab.com/install/repositories/gitlab/{{ gitlab_package_name }}/script.deb.sh | bash
+  args:
+    creates: "/etc/apt/sources.list.d/gitlab_{{ gitlab_package_name }}.list"
+  when: gitlab_package_name not in ansible_facts.packages
+
+- name: "Install: Install GitLab on Debian"
+  ansible.builtin.apt:
+    name: "{{ gitlab_package_name }}{{ '=' + gls_version if gls_version != 'latest' else '' }}"
+    state: present
+  when: gitlab_package_name not in ansible_facts.packages
+...

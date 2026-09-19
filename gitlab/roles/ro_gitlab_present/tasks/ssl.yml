@@ -1,0 +1,36 @@
+#SPDX-License-Identifier: MIT-0
+---
+- name: "SSL: Create SSL directory"
+  ansible.builtin.file:
+    path: "{{ gls_ssl_path }}"
+    state: directory
+    mode: '0755'
+    owner: root
+    group: root
+  when: gls_ssl_enabled
+
+- name: "SSL: Generate self-signed certificate"
+  ansible.builtin.command: >
+    openssl req -x509 -nodes -days 3650 -newkey rsa:2048
+    -keyout {{ gls_ssl_key_path }}
+    -out {{ gls_ssl_cert_path }}
+    -subj "/C=US/ST=State/L=City/O=Organization/CN={{ gls_domain }}"
+  args:
+    creates: "{{ gls_ssl_cert_path }}"
+  when:
+    - gls_ssl_enabled
+    - gls_ssl_self_signed
+
+- name: "SSL: Set permissions on SSL files"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    mode: '0600'
+    owner: root
+    group: root
+  loop:
+    - "{{ gls_ssl_key_path }}"
+    - "{{ gls_ssl_cert_path }}"
+  when:
+    - gls_ssl_enabled
+    - gls_ssl_self_signed
+...

@@ -1,60 +1,38 @@
-# Role: `ro_gitlab_runner`
+# ro_gitlab_runner
 
-Install and configure a **GitLab Runner** on a target VM, running the runner process inside a **Podman** container with optional systemd integration for boot persistence.
+Ansible role to install, configure, and register a **GitLab Runner** executing via a **Podman container**.
 
----
+This role configures the target host as a Podman host, runs the GitLab Runner binary inside a dedicated Podman container, and can optionally expose the rootless/root Podman socket back to the runner so that CI/CD jobs can run as native containers (the `docker` executor mapped to Podman).
 
 ## Requirements
 
-### Control Node
-
-| Requirement | Minimum version |
-|---|---|
-| Ansible | 2.14+ |
-| Python | 3.9+ |
-
-### Ansible Collections (install before use)
-
-```bash
-ansible-galaxy collection install containers.podman community.general ansible.posix
-```
-
-Or add to your `requirements.yml`:
-
-```yaml
-collections:
-  - name: containers.podman
-    version: ">=1.10.0"
-  - name: community.general
-    version: ">=6.0.0"
-  - name: ansible.posix
-    version: ">=1.5.0"
-```
-
-### Target Host
-
-- RHEL 9/10, Rocky/Alma Linux, Ubuntu 22.04/24.04, Debian 12, or openSUSE/SLES
-- `sudo` / root access (`ansible_become: true`)
-- Network access to:
-  - Your GitLab instance (for runner registration)
-  - A container registry (default: `docker.io`) to pull the runner image
-
----
+- Control node:
+  - Ansible >= 2.14
+  - Collections:
+    - `containers.podman` (for container lifecycle)
+    - `ansible.posix` (for SELinux booleans)
+- Target host:
+  - **RHEL 9** (or clones like Rocky Linux 9, AlmaLinux 9)
+  - **Ubuntu 24.04 (Noble)**
 
 ## Role Variables
 
-All variables have defaults defined in [`defaults/main.yml`](defaults/main.yml).
+Variables can be overridden in inventory or via extra-vars. For sensitive variables (like tokens), use **Ansible Vault**.
 
-### GitLab Connection
+### Connection & Registration
 
 | Variable | Default | Description |
 |---|---|---|
-| `gitlab_url` | `http://gitlab.example.com` | URL of the GitLab instance |
+| `gitlab_url` | `http://gitlab.example.com` | URL of the target GitLab instance |
 | `gitlab_runner_registration_token` | `REPLACE_ME` | Registration token from **Admin > CI/CD > Runners** — store in Ansible Vault |
 | `gitlab_runner_token` | `""` | Pre-existing runner authentication token. When set, registration is skipped |
 
-> [!CAUTION]
-> Never store `gitlab_runner_registration_token` in plaintext. Use `ansible-vault encrypt_string` or a vault file.
+### OS-Specific Security
+
+| Variable | Default | Description |
+|---|---|---|
+| `gitlab_runner_configure_selinux` | `true` | Configure SELinux boolean `container_manage_cgroup` for Podman on RHEL |
+| `gitlab_runner_configure_apparmor` | `true` | Ensure AppArmor service is enabled and running on Ubuntu |
 
 ### Runner Identity
 
@@ -111,12 +89,6 @@ All variables have defaults defined in [`defaults/main.yml`](defaults/main.yml).
 
 ---
 
-## Dependencies
-
-None (no Ansible Galaxy role dependencies). See [Requirements](#requirements) for collection dependencies.
-
----
-
 ## Example Playbooks
 
 ### Minimal — shell executor
@@ -135,7 +107,7 @@ None (no Ansible Galaxy role dependencies). See [Requirements](#requirements) fo
         gitlab_runner_tags: "podman,rhel"
 ```
 
-### Docker executor with Podman socket
+### Docker executor with Podman socket (Ubuntu Noble / RHEL 9)
 
 ```yaml
 - name: Deploy GitLab Runner (docker executor via Podman)
@@ -154,26 +126,6 @@ None (no Ansible Galaxy role dependencies). See [Requirements](#requirements) fo
           - "DOCKER_HOST=unix:///run/podman/podman.sock"
 ```
 
-### Multiple concurrent jobs, custom image
-
-```yaml
-- name: Deploy high-throughput GitLab Runner
-  hosts: runner_hosts
-  become: true
-  roles:
-    - role: ro_gitlab_runner
-      vars:
-        gitlab_url: "https://gitlab.example.com"
-        gitlab_runner_registration_token: "{{ vault_runner_token }}"
-        gitlab_runner_name: "build-farm-01"
-        gitlab_runner_concurrent: 16
-        gitlab_runner_check_interval: 1
-        gitlab_runner_image: "docker.io/gitlab/gitlab-runner:v17.3.0"
-        gitlab_runner_executor: "shell"
-        gitlab_runner_tags: "podman,build,linux"
-        gitlab_runner_run_untagged: false
-```
-
 ---
 
 ## Role Structure
@@ -181,26 +133,27 @@ None (no Ansible Galaxy role dependencies). See [Requirements](#requirements) fo
 ```text
 ro_gitlab_runner/
 ├── defaults/
-│   └── main.yml          # All user-configurable variables with defaults
+│   └── main.yml                  # All user-configurable variables with defaults
 ├── vars/
-│   └── main.yml          # Internal role variables (OS package maps, paths)
+│   ├── main.yml                  # Internal shared variables
+│   ├── RedHat.yml                # RHEL-specific variables (packages, SELinux)
+│   └── Debian.yml                # Debian/Ubuntu-specific variables (packages, AppArmor)
 ├── tasks/
-│   ├── main.yml          # Entry point — orchestrates phase includes
-│   ├── assert.yml        # Pre-flight variable validation
-│   ├── install_podman.yml # Multi-distro Podman installation
-│   ├── configure.yml     # Directory creation and config.toml rendering
-│   ├── container.yml     # Image pull and container lifecycle
-│   ├── register.yml      # Idempotent GitLab registration
-│   └── systemd.yml       # Systemd unit generation and enablement
+│   ├── main.yml                  # Entry point — orchestrates phase includes
+│   ├── assert.yml                # Pre-flight variable validation
+│   ├── install_podman_redhat.yml # RHEL 9 Podman and SELinux installation
+│   ├── install_podman_debian.yml # Ubuntu 24.04 Podman and AppArmor installation
+│   ├── configure.yml             # Directory creation and config.toml rendering
+│   ├── container.yml             # Image pull and container lifecycle
+│   ├── register.yml              # Idempotent GitLab registration
+│   └── systemd.yml               # Systemd unit generation and enablement
 ├── templates/
-│   └── config.toml.j2    # GitLab Runner config template
+│   └── config.toml.j2            # GitLab Runner config template
 ├── handlers/
-│   └── main.yml          # Container restart and systemd reload handlers
+│   └── main.yml                  # Container restart and systemd reload handlers
 ├── meta/
-│   └── main.yml          # Galaxy metadata and collection requirements
-└── tests/
-    ├── inventory         # Localhost inventory for smoke tests
-    └── test.yml          # Smoke-test playbook
+│   └── main.yml                  # Galaxy metadata and collection requirements
+└── molecule/                     # Molecule testing setup
 ```
 
 ---
@@ -219,51 +172,12 @@ ro_gitlab_runner/
 
 ---
 
-## OS Compatibility
-
-| OS Family | Package Manager | Packages Installed |
-|---|---|---|
-| RHEL / Rocky / AlmaLinux | `dnf` | `podman`, `podman-plugins`, `slirp4netns`, `fuse-overlayfs` |
-| Ubuntu / Debian | `apt` | `podman`, `uidmap`, `slirp4netns`, `fuse-overlayfs` |
-| openSUSE / SLES | `zypper` | `podman` |
-
----
-
 ## Security Considerations
 
 - The runner registration token is treated as a secret (`no_log: true` on the registration task).  
 - Always store `gitlab_runner_registration_token` in an **Ansible Vault** file.  
 - Avoid `gitlab_runner_privileged: true` unless your pipelines explicitly need it (DinD / PinP).  
-- The Podman socket gives container workloads elevated container management rights — scope access with SELinux labels (`:Z`) as configured by the role.
-
----
-
-## Integration with the Existing Project
-
-Add runner hosts to your inventory and call the new playbook:
-
-```yaml
-# inventory/hosts.yml
-all:
-  children:
-    runner_hosts:
-      hosts:
-        runner01:
-          ansible_host: 10.10.10.20
-          ansible_user: ansible
-          ansible_become: true
-```
-
-```bash
-# Encrypt the registration token
-ansible-vault encrypt_string 'glrt-xxxx' --name 'runner_registration_token' >> credentials.yml
-
-# Run the playbook
-ansible-playbook pb_gitlab_runner.yml \
-  -i inventory/hosts.yml \
-  -l runner_hosts \
-  --ask-vault-pass
-```
+- The Podman socket gives container workloads elevated container management rights — scope access with SELinux labels (`:Z`) as configured by the role on RHEL, or utilize AppArmor profiles on Ubuntu.
 
 ---
 
@@ -273,4 +187,4 @@ MIT-0
 
 ## Author Information
 
-Part of the [gitlab-ansible](https://github.com/your-org/gitlab-ansible) automation project.
+Part of the gitlab-ansible automation project.

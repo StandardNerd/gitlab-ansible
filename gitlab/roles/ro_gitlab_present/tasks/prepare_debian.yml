@@ -1,0 +1,38 @@
+#SPDX-License-Identifier: MIT-0
+---
+- name: "Prepare: Update apt cache"
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: "Prepare: Install required dependencies"
+  ansible.builtin.apt:
+    name: "{{ gls_os_packages }}"
+    state: present
+
+- name: "Prepare: Start postfix service"
+  ansible.builtin.service:
+    name: postfix
+    state: started
+    enabled: true
+
+- name: "Prepare: Start openssh-server"
+  ansible.builtin.service:
+    name: ssh
+    state: started
+    enabled: true
+
+- name: "Prepare: Enable ufw"
+  community.general.ufw:
+    state: enabled
+  when: gls_firewall_enabled
+
+- name: "Prepare: Open webserver ports in ufw"
+  community.general.ufw:
+    rule: allow
+    port: "{{ '443' if item == 'https' else '80' }}"
+    proto: tcp
+  loop: "{{ gls_web_ports }}"
+  when: gls_firewall_enabled
+  notify: "Reload ufw"
+...

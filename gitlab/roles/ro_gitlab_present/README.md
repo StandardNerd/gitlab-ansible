@@ -1,38 +1,48 @@
-Role Name
-=========
+# ro_gitlab_present
 
-A brief description of the role goes here.
+Ansible role for installing and configuring GitLab CE/EE on RHEL 9 and Ubuntu Noble 24.04.
 
-Requirements
-------------
+## Supported OS
+- RHEL 9
+- Ubuntu 24.04 (Noble)
 
-Any pre-requisites that may not be covered by Ansible itself or the role should be mentioned here. For instance, if the role uses the EC2 module, it may be a good idea to mention in this section that the boto package is required.
+## Variables
 
-Role Variables
---------------
+| Variable | Default | Description |
+|---|---|---|
+| `gls_edition` | `ce` | ce or ee |
+| `gls_version` | `latest` | GitLab version to install |
+| `gls_ssl_enabled` | `true` | Enable SSL |
+| `gls_ssl_cert_path` | `/etc/gitlab/ssl/{{ gls_domain }}.crt` | Path to SSL certificate |
+| `gls_ssl_key_path` | `/etc/gitlab/ssl/{{ gls_domain }}.key` | Path to SSL key |
+| `gls_ssl_self_signed` | `true` | Generate self-signed certificate |
+| `gls_domain` | (Required) | GitLab domain |
+| `gls_external_url` | `http://{{ gls_domain }}` | GitLab external URL |
+| `gls_admin_password` | `gls_initial_adm_pwd` | Initial admin password |
 
-A description of the settable variables for this role should go here, including any variables that are in defaults/main.yml, vars/main.yml, and any variables that can/should be set via parameters to the role. Any variables that are read from other roles and/or the global scope (ie. hostvars, group vars, etc.) should be mentioned here as well.
+## SSL Configuration
+By default, this role uses self-signed certificates. If you want to use your own certificates, set `gls_ssl_self_signed: false` and ensure that the certificate and key are deployed to the paths specified by `gls_ssl_cert_path` and `gls_ssl_key_path` before running this role.
 
-Dependencies
-------------
+## Example Playbook
 
-A list of other roles hosted on Galaxy should go here, plus any details in regards to parameters that may need to be set for other roles, or variables that are used from other roles.
+```yaml
+- hosts: all
+  roles:
+    - role: ro_gitlab_present
+      vars:
+        gls_domain: gitlab.example.com
+        gls_external_url: "https://gitlab.example.com"
+        gls_admin_password: "super_secret_password"
+```
 
-Example Playbook
-----------------
-
-Including an example of how to use your role (for instance, with variables passed in as parameters) is always nice for users too:
-
-    - hosts: servers
-      roles:
-         - { role: username.rolename, x: 42 }
-
-License
--------
-
-BSD
-
-Author Information
-------------------
-
-An optional section for the role authors to include contact information, or a website (HTML is not allowed).
+## Structure
+- `tasks/main.yml` - Main entrypoint
+- `tasks/assert.yml` - Variable validation
+- `tasks/prepare_redhat.yml` - RedHat environment preparation
+- `tasks/prepare_debian.yml` - Debian environment preparation
+- `tasks/install_redhat.yml` - RedHat package installation
+- `tasks/install_debian.yml` - Debian package installation
+- `tasks/ssl.yml` - SSL setup
+- `tasks/configure.yml` - GitLab reconfigure
+- `tasks/gitlab_ruby_configuration.yml` - Post-install script configuration
+- `tasks/cleanup.yml` - Cleanup temporary scripts

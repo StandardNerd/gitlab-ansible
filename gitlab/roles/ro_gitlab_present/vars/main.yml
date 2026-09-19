@@ -1,3 +1,5 @@
 #SPDX-License-Identifier: MIT-0
 ---
-# vars file for ro_gitlab_present
+gls_config_path: "/etc/gitlab/gitlab.rb"
+gls_ssl_path: "/etc/gitlab/ssl"
+...

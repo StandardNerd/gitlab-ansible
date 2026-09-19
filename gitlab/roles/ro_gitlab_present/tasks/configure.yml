@@ -1,0 +1,31 @@
+#SPDX-License-Identifier: MIT-0
+---
+- name: "Configure: Copy GitLab configuration file"
+  ansible.builtin.template:
+    backup: true
+    src: "gitlab.rb.j2"
+    dest: "{{ gls_config_path }}"
+    mode: '0600'
+  notify: "Reconfigure GitLab"
+
+- name: "Configure: Copy GitLab License file"
+  ansible.builtin.copy:
+    src: "../files/{{ gitlab_license_file }}"
+    dest: "/etc/gitlab/gitlab-license.json"
+    mode: '0600'
+  ignore_errors: true
+
+- name: "Configure: Force Reconfigure GitLab if needed"
+  ansible.builtin.meta: flush_handlers
+
+- name: "Configure: Wait for GitLab to respond"
+  ansible.builtin.uri:
+    url: "https://{{ ansible_host if not molecule_test else '127.0.0.1' }}/-/readiness"
+    status_code: 200
+    validate_certs: false
+    return_content: true
+  register: result
+  retries: 30
+  delay: 20
+  until: result.status == 200
+...

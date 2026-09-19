@@ -1,0 +1,14 @@
+#SPDX-License-Identifier: MIT-0
+---
+_podman_pkgs:
+  - podman
+  - podman-plugins
+  - slirp4netns
+  - fuse-overlayfs
+  - container-selinux
+
+_firewall_service: firewalld
+_selinux_packages:
+  - policycoreutils-python-utils
+  - container-selinux
+...

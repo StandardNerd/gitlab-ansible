@@ -1,0 +1,39 @@
+#SPDX-License-Identifier: MIT-0
+---
+- name: "Prepare: Check dnf releasever variable via Python"
+  ansible.builtin.command: >
+    python3 -c 'import dnf; db = dnf.Base(); db.conf.read(); print(db.conf.substitutions.get("releasever", "Unknown"))'
+  register: dnf_releasever
+  changed_when: false
+
+- name: "Prepare: Display the release version"
+  ansible.builtin.debug:
+    msg: "The detected RHEL release version is: {{ dnf_releasever.stdout | trim }}"
+
+- name: "Prepare: Install python3-libdnf using raw command"
+  ansible.builtin.raw: dnf install -y python3-libdnf
+  changed_when: false
+
+- name: "Prepare: Install required dependencies"
+  ansible.builtin.dnf:
+    name: "{{ gls_os_packages }}"
+    state: present
+    use_backend: dnf4
+
+- name: "Prepare: Start firewall daemon"
+  ansible.builtin.service:
+    name: "{{ gls_firewall_service }}"
+    state: started
+    enabled: true
+  when: gls_firewall_enabled
+
+- name: "Prepare: Open webserver ports"
+  ansible.posix.firewalld:
+    service: "{{ item }}"
+    state: enabled
+    permanent: true
+    immediate: true
+  loop: "{{ gls_web_ports }}"
+  when: gls_firewall_enabled
+  notify: "Reload firewalld"
+...
