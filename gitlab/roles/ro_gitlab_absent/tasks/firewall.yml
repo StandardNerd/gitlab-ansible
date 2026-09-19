@@ -1,0 +1,24 @@
+#SPDX-License-Identifier: MIT-0
+---
+# tasks/firewall.yml — close HTTP/HTTPS ports opened during installation
+
+- name: "Firewall: Close ports in firewalld (RedHat)"
+  ansible.posix.firewalld:
+    service: "{{ item }}"
+    state: disabled
+    permanent: true
+    immediate: true
+  loop: "{{ _gla_web_ports }}"
+  when: ansible_os_family == 'RedHat'
+  notify: "Reload firewalld"
+
+- name: "Firewall: Close ports in ufw (Debian)"
+  community.general.ufw:
+    rule: deny
+    port: "{{ '443' if item == 'https' else '80' }}"
+    proto: tcp
+    delete: true
+  loop: "{{ _gla_web_ports }}"
+  when: ansible_os_family == 'Debian'
+
+...

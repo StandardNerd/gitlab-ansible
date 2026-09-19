@@ -1,0 +1,17 @@
+#SPDX-License-Identifier: MIT-0
+---
+# vars/main.yml — internal role variables (not intended to be overridden)
+
+# Full path to config.toml on the host
+_runner_config_path: "{{ glra_config_dir }}/config.toml"
+
+# Systemd unit directory
+_systemd_unit_dir: "/etc/systemd/system"
+
+# Directories to remove during cleanup
+_runner_dirs:
+  - "{{ glra_config_dir }}"
+  - "{{ glra_builds_dir }}"
+  - "{{ glra_cache_dir }}"
+
+...

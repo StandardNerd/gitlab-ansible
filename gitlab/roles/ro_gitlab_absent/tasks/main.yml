@@ -1,0 +1,47 @@
+#SPDX-License-Identifier: MIT-0
+---
+# tasks/main.yml — entry point for ro_gitlab_absent
+
+- name: "Main: Include OS-specific variables"
+  ansible.builtin.include_vars: "{{ ansible_os_family }}.yml"
+
+- name: "Main: Check if GitLab is installed"
+  ansible.builtin.package_facts:
+    manager: auto
+
+- name: "Main: Set fact — GitLab installed"
+  ansible.builtin.set_fact:
+    _gitlab_installed: "{{ gla_package_name in ansible_facts.packages }}"
+
+- name: "Main: Display GitLab status"
+  ansible.builtin.debug:
+    msg: >-
+      {{ gla_package_name }} {{ 'is installed — proceeding with removal'
+        if _gitlab_installed | bool
+        else 'is NOT installed — skipping removal tasks' }}
+
+- name: "Main: Stop GitLab services"
+  ansible.builtin.include_tasks: "stop.yml"
+  when: _gitlab_installed | bool
+
+- name: "Main: Uninstall GitLab package (RedHat)"
+  ansible.builtin.include_tasks: "uninstall_redhat.yml"
+  when:
+    - _gitlab_installed | bool
+    - ansible_os_family == 'RedHat'
+
+- name: "Main: Uninstall GitLab package (Debian)"
+  ansible.builtin.include_tasks: "uninstall_debian.yml"
+  when:
+    - _gitlab_installed | bool
+    - ansible_os_family == 'Debian'
+
+- name: "Main: Close firewall ports"
+  ansible.builtin.include_tasks: "firewall.yml"
+  when:
+    - gla_remove_firewall_rules | bool
+    - gla_firewall_enabled | bool
+
+- name: "Main: Remove data directories, users, and SSL certificates"
+  ansible.builtin.include_tasks: "cleanup.yml"
+...

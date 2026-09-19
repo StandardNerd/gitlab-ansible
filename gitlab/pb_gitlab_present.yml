@@ -1,6 +1,6 @@
 ---
 - name: Install Gitlab server
-  hosts: vm_test2
+  hosts: gitlab-server
   vars:
     ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
   gather_facts: true

@@ -6,9 +6,7 @@
     src: "gitlab.rb.j2"
     dest: "{{ gls_config_path }}"
     mode: '0600'
-  notify:
-    - "Reconfigure GitLab"
-    - "Restart gitlab-runsvdir"
+  notify: "Reconfigure GitLab"
 
 - name: "Configure: Check if GitLab License file exists locally"
   ansible.builtin.stat:
@@ -24,15 +22,24 @@
     mode: '0600'
   when: _license_file_stat.stat.exists
 
+- name: "Configure: Force Reconfigure GitLab if configuration changed"
+  ansible.builtin.meta: flush_handlers
+
 - name: "Service: Ensure gitlab-runsvdir service is enabled and started"
   ansible.builtin.systemd:
     name: "{{ _gitlab_service_name | default('gitlab-runsvdir') }}"
     state: started
     enabled: true
-  ignore_errors: true  # Prevents failure in container/chroot test environments without systemd
+  register: _runsvdir_result
+  failed_when: false
 
-- name: "Configure: Force Reconfigure GitLab if configuration changed"
-  ansible.builtin.meta: flush_handlers
+- name: "Service: Display service status"
+  ansible.builtin.debug:
+    msg: >-
+      gitlab-runsvdir service {{ 'is running'
+        if (_runsvdir_result.status.ActiveState | default('')) == 'active'
+        else 'not yet available (will start after first reconfigure)' }}
+    verbosity: 1
 
 - name: "Configure: Wait for GitLab to respond"
   ansible.builtin.uri:

@@ -1,0 +1,12 @@
+#SPDX-License-Identifier: MIT-0
+---
+- name: "Reload firewalld"
+  ansible.builtin.service:
+    name: firewalld
+    state: reloaded
+  when: ansible_os_family == 'RedHat'
+
+- name: "Reload systemd"
+  ansible.builtin.systemd:
+    daemon_reload: true
+...

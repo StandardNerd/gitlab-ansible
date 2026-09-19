@@ -166,8 +166,9 @@ ansible-playbook pb_gitlab_present.yml \
 | Playbook | Description |
 |---|---|
 | [`pb_gitlab_present.yml`](gitlab/pb_gitlab_present.yml) | Deploy and configure a GitLab CE server (invokes `ro_gitlab_present`). |
+| [`pb_gitlab_absent.yml`](gitlab/pb_gitlab_absent.yml) | Remove GitLab CE/EE from a server (invokes `ro_gitlab_absent`). |
 | [`pb_gitlab_runner.yml`](gitlab/pb_gitlab_runner.yml) | Deploy a GitLab Runner as a Podman container (invokes `ro_gitlab_runner`). |
-| [`pb_get_hostname.yml`](gitlab/pb_get_hostname.yml) | Quick connectivity verification playbook to test host access and reachability. |
+| [`pb_get_hostname.yml`](gitlab/pb_get_hostname.yml) | Quick connectivity and OS verification playbook. |
 | [`pb_test_ansible_dev_env.yml`](gitlab/pb_test_ansible_dev_env.yml) | Validates local Ansible version, Python interpreter, OS environment, and write permissions. |
 
 ---
@@ -193,6 +194,21 @@ The role is divided into structured task phases:
 
 Key role configuration defaults can be viewed and overridden in [`roles/ro_gitlab_present/defaults/main.yml`](gitlab/roles/ro_gitlab_present/defaults/main.yml). Full variable documentation is in [`roles/ro_gitlab_present/README.md`](gitlab/roles/ro_gitlab_present/README.md).
 
+
+---
+
+## Role: `ro_gitlab_absent`
+
+Completely removes a GitLab CE/EE installation. Auto-detects the target OS and uses the correct package manager and firewall tool.
+
+| Phase | Task file | What it does |
+|---|---|---|
+| 1 | `stop.yml` | `gitlab-ctl stop` → disable `gitlab-runsvdir` → `gitlab-ctl kill` |
+| 2 | `uninstall_redhat.yml` / `uninstall_debian.yml` | Remove the package and the GitLab repo |
+| 3 | `firewall.yml` | Close HTTP/HTTPS ports (`firewalld` on RHEL, `ufw` on Ubuntu) |
+| 4 | `cleanup.yml` | Remove data dirs, SSL certs, system users, leftover systemd units |
+
+All cleanup steps are toggleable — see [`roles/ro_gitlab_absent/defaults/main.yml`](gitlab/roles/ro_gitlab_absent/defaults/main.yml) for the full variable list. The role is idempotent: if GitLab is not installed, it detects this and skips all removal tasks.
 
 ---
 

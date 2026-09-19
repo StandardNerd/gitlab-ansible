@@ -1,0 +1,25 @@
+#SPDX-License-Identifier: MIT-0
+---
+galaxy_info:
+  author: "jono"
+  description: "Remove GitLab CE/EE from RHEL 9 or Ubuntu Noble"
+  license: "MIT-0"
+  min_ansible_version: "2.14"
+  platforms:
+    - name: EL
+      versions:
+        - "9"
+    - name: Ubuntu
+      versions:
+        - noble
+    - name: Debian
+      versions:
+        - bookworm
+  galaxy_tags:
+    - gitlab
+    - uninstall
+    - removal
+    - cleanup
+
+dependencies: []
+...

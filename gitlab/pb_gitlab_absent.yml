@@ -1,0 +1,23 @@
+---
+# pb_gitlab_absent.yml
+# Remove GitLab CE/EE from target hosts.
+#
+# Usage:
+#   ansible-playbook pb_gitlab_absent.yml \
+#     -i inventory/hosts.yml \
+#     -l gitlab-server \
+#     --ask-vault-pass
+
+- name: "Remove GitLab Server"
+  hosts: gitlab-server
+  vars:
+    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+  gather_facts: true
+  become: true
+  vars_files:
+    - ./credentials.yml
+
+  tasks:
+    - name: "Include ro_gitlab_absent role"
+      ansible.builtin.include_role:
+        name: ro_gitlab_absent

@@ -10,7 +10,7 @@
 #     --ask-vault-pass
 
 - name: "Deploy GitLab Runner (Podman)"
-  hosts: runner_hosts
+  hosts: gitlab-runner
   vars:
     ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
   gather_facts: true

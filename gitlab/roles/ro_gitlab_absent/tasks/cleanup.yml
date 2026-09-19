@@ -1,0 +1,57 @@
+#SPDX-License-Identifier: MIT-0
+---
+# tasks/cleanup.yml — remove GitLab data directories, SSL certs, and system users
+
+# ---------------------------------------------------------------------------
+# Data directories
+# ---------------------------------------------------------------------------
+- name: "Cleanup: Remove GitLab data directories"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop: "{{ _gitlab_dirs }}"
+  when: gla_remove_data | bool
+
+# ---------------------------------------------------------------------------
+# SSL certificates
+# ---------------------------------------------------------------------------
+- name: "Cleanup: Remove SSL certificate directory"
+  ansible.builtin.file:
+    path: "/etc/gitlab/ssl"
+    state: absent
+  when: gla_remove_ssl | bool
+
+# ---------------------------------------------------------------------------
+# System users and groups
+# ---------------------------------------------------------------------------
+- name: "Cleanup: Remove GitLab system users"
+  ansible.builtin.user:
+    name: "{{ item }}"
+    state: absent
+    remove: true
+  loop: "{{ _gitlab_users }}"
+  when: gla_remove_users | bool
+  failed_when: false
+
+- name: "Cleanup: Remove GitLab system groups"
+  ansible.builtin.group:
+    name: "{{ item }}"
+    state: absent
+  loop: "{{ _gitlab_users }}"
+  when: gla_remove_users | bool
+  failed_when: false
+
+# ---------------------------------------------------------------------------
+# Systemd unit file leftovers
+# ---------------------------------------------------------------------------
+- name: "Cleanup: Remove leftover systemd unit file"
+  ansible.builtin.file:
+    path: "/etc/systemd/system/{{ _gitlab_service_name }}.service"
+    state: absent
+  notify: "Reload systemd"
+
+- name: "Cleanup: Removal complete"
+  ansible.builtin.debug:
+    msg: "GitLab has been removed from {{ inventory_hostname }}."
+
+...

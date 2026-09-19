@@ -1,0 +1,30 @@
+#SPDX-License-Identifier: MIT-0
+---
+# tasks/stop.yml — gracefully stop all GitLab services before removal
+
+- name: "Stop: Run gitlab-ctl stop"
+  ansible.builtin.command: gitlab-ctl stop
+  register: _ctl_stop
+  changed_when: _ctl_stop.rc == 0
+  failed_when: false
+
+- name: "Stop: Display stop result"
+  ansible.builtin.debug:
+    msg: "{{ _ctl_stop.stdout_lines | default(['gitlab-ctl not found or already stopped']) }}"
+    verbosity: 1
+
+- name: "Stop: Disable gitlab-runsvdir service"
+  ansible.builtin.systemd:
+    name: "{{ _gitlab_service_name }}"
+    state: stopped
+    enabled: false
+  register: _svc_stop
+  failed_when: false
+
+- name: "Stop: Kill any remaining GitLab processes"
+  ansible.builtin.command: gitlab-ctl kill
+  register: _ctl_kill
+  changed_when: _ctl_kill.rc == 0
+  failed_when: false
+
+...

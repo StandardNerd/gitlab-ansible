@@ -1,0 +1,23 @@
+#SPDX-License-Identifier: MIT-0
+---
+# vars/main.yml — internal variables for ro_gitlab_absent
+
+_gitlab_dirs:
+  - "/etc/gitlab"
+  - "/var/opt/gitlab"
+  - "/var/log/gitlab"
+  - "/opt/gitlab"
+
+_gitlab_service_name: "gitlab-runsvdir"
+
+_gitlab_users:
+  - git
+  - gitlab-www
+  - gitlab-redis
+  - gitlab-psql
+  - gitlab-prometheus
+  - mattermost
+  - registry
+  - gitlab-consul
+
+...

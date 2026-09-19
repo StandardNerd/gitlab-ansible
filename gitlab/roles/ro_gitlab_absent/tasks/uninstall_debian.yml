@@ -1,0 +1,30 @@
+#SPDX-License-Identifier: MIT-0
+---
+# tasks/uninstall_debian.yml — remove GitLab package and repository on Ubuntu/Debian
+
+- name: "Uninstall: Remove GitLab package (apt)"
+  ansible.builtin.apt:
+    name: "{{ gla_package_name }}"
+    state: absent
+    purge: true
+    autoremove: true
+
+- name: "Uninstall: Remove GitLab APT sources list"
+  ansible.builtin.file:
+    path: "{{ _gla_repo_file }}"
+    state: absent
+  when: gla_remove_repository | bool
+
+- name: "Uninstall: Remove GitLab APT GPG key"
+  ansible.builtin.file:
+    path: "{{ _gla_repo_gpg }}"
+    state: absent
+  when: gla_remove_repository | bool
+
+- name: "Uninstall: Update apt cache after repo removal"
+  ansible.builtin.apt:
+    update_cache: true
+  when: gla_remove_repository | bool
+  changed_when: false
+
+...

@@ -1,0 +1,63 @@
+#SPDX-License-Identifier: MIT-0
+---
+# defaults/main.yml — configurable parameters for ro_gitlab_runner_absent
+
+# ---------------------------------------------------------------------------
+# GitLab instance connection (needed for runner unregistration)
+# ---------------------------------------------------------------------------
+
+# URL of the GitLab instance the runner is registered with
+gitlab_url: "http://gitlab.example.com"
+
+# ---------------------------------------------------------------------------
+# Runner / container identity  (must match what was used during installation)
+# ---------------------------------------------------------------------------
+
+# Name of the Podman container running the GitLab Runner
+glra_container_name: "gitlab-runner"
+
+# OCI image used by the runner container
+glra_runner_image: "docker.io/gitlab/gitlab-runner:latest"
+
+# ---------------------------------------------------------------------------
+# Directories  (must match paths used during installation)
+# ---------------------------------------------------------------------------
+
+# Host directory containing config.toml
+glra_config_dir: "/etc/gitlab-runner"
+
+# Host directory used for build workspaces
+glra_builds_dir: "/var/lib/gitlab-runner/builds"
+
+# Host directory used for runner cache
+glra_cache_dir: "/var/lib/gitlab-runner/cache"
+
+# ---------------------------------------------------------------------------
+# Systemd
+# ---------------------------------------------------------------------------
+
+# Name of the systemd service unit created during installation
+glra_systemd_service: "container-{{ glra_container_name }}"
+
+# ---------------------------------------------------------------------------
+# Removal behaviour toggles
+# ---------------------------------------------------------------------------
+
+# Attempt to unregister the runner from GitLab before destroying the container.
+# Requires the container to be running and config.toml to contain a valid token.
+glra_unregister: true
+
+# Remove configuration, builds, and cache directories
+glra_remove_data: true
+
+# Remove the GitLab Runner OCI image from the local Podman store
+glra_remove_image: true
+
+# Remove Podman and its dependencies from the system.
+# ⚠ Set to false (default) if other workloads on this host depend on Podman.
+glra_remove_podman: false
+
+# Disable and remove the Podman socket (podman.socket systemd unit)
+glra_remove_podman_socket: false
+
+...

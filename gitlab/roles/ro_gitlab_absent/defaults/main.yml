@@ -1,0 +1,26 @@
+#SPDX-License-Identifier: MIT-0
+---
+# defaults/main.yml — configurable parameters for ro_gitlab_absent
+
+# GitLab package to remove (gitlab-ce or gitlab-ee)
+gla_package_name: "gitlab-ce"
+
+# Remove all GitLab data directories (/etc/gitlab, /var/opt/gitlab, /var/log/gitlab, /opt/gitlab)
+gla_remove_data: true
+
+# Remove the GitLab apt/yum repository from the system
+gla_remove_repository: true
+
+# Remove the git and gitlab-www system users and groups
+gla_remove_users: false
+
+# Close HTTP/HTTPS firewall ports that were opened during installation
+gla_remove_firewall_rules: true
+
+# Remove SSL certificates created under /etc/gitlab/ssl
+gla_remove_ssl: true
+
+# Firewall management (set to false if you manage firewall externally)
+gla_firewall_enabled: true
+
+...

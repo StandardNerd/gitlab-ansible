@@ -1,0 +1,9 @@
+#SPDX-License-Identifier: MIT-0
+---
+_gla_firewall_service: ufw
+_gla_web_ports:
+  - http
+  - https
+_gla_repo_file: "/etc/apt/sources.list.d/gitlab_{{ gla_package_name }}.list"
+_gla_repo_gpg: "/etc/apt/keyrings/gitlab_{{ gla_package_name }}-archive-keyring.gpg"
+...

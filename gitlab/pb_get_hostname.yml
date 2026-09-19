@@ -1,15 +1,26 @@
 ---
-- name: Retrieve hostname from RHEL 9 server
-  hosts: vm_test
+- name: Retrieve hostname and OS info from server
+  hosts: gitlab-server
+  vars:
+    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
   gather_facts: false
   vars_files:
     - ./credentials.yml
 
   tasks:
+    - name: "Gather OS facts from target host"
+      ansible.builtin.setup:
+        gather_subset:
+          - "distribution"
+          - "os_family"
+
     - name: "Get the hostname"
       ansible.builtin.command: hostname
       register: hostname_result
+      changed_when: false
 
-    - name: Display the hostname
+    - name: "Display hostname and OS"
       ansible.builtin.debug:
-        var: hostname_result.stdout
+        msg:
+          - "Hostname : {{ hostname_result.stdout }}"
+          - "OS       : {{ ansible_distribution }} {{ ansible_distribution_version }} ({{ ansible_os_family }})"

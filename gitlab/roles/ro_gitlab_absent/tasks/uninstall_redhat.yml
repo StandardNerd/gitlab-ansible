@@ -1,0 +1,17 @@
+#SPDX-License-Identifier: MIT-0
+---
+# tasks/uninstall_redhat.yml — remove GitLab package and repository on RHEL
+
+- name: "Uninstall: Remove GitLab package (dnf)"
+  ansible.builtin.dnf:
+    name: "{{ gla_package_name }}"
+    state: absent
+    autoremove: true
+
+- name: "Uninstall: Remove GitLab YUM repository"
+  ansible.builtin.file:
+    path: "{{ _gla_repo_file }}"
+    state: absent
+  when: gla_remove_repository | bool
+
+...
