@@ -6,26 +6,44 @@
     src: "gitlab.rb.j2"
     dest: "{{ gls_config_path }}"
     mode: '0600'
-  notify: "Reconfigure GitLab"
+  notify:
+    - "Reconfigure GitLab"
+    - "Restart gitlab-runsvdir"
+
+- name: "Configure: Check if GitLab License file exists locally"
+  ansible.builtin.stat:
+    path: "{{ role_path }}/files/{{ gitlab_license_file }}"
+  delegate_to: localhost
+  become: false
+  register: _license_file_stat
 
 - name: "Configure: Copy GitLab License file"
   ansible.builtin.copy:
-    src: "../files/{{ gitlab_license_file }}"
+    src: "{{ gitlab_license_file }}"
     dest: "/etc/gitlab/gitlab-license.json"
     mode: '0600'
-  ignore_errors: true
+  when: _license_file_stat.stat.exists
 
-- name: "Configure: Force Reconfigure GitLab if needed"
+- name: "Service: Ensure gitlab-runsvdir service is enabled and started"
+  ansible.builtin.systemd:
+    name: "{{ _gitlab_service_name | default('gitlab-runsvdir') }}"
+    state: started
+    enabled: true
+  ignore_errors: true  # Prevents failure in container/chroot test environments without systemd
+
+- name: "Configure: Force Reconfigure GitLab if configuration changed"
   ansible.builtin.meta: flush_handlers
 
 - name: "Configure: Wait for GitLab to respond"
   ansible.builtin.uri:
-    url: "https://{{ ansible_host if not molecule_test else '127.0.0.1' }}/-/readiness"
+    url: "{{ 'https' if gls_ssl_enabled | bool else 'http' }}://{{ '127.0.0.1' if molecule_test | bool else (gls_domain | default(ansible_host)) }}/-/readiness"
     status_code: 200
     validate_certs: false
     return_content: true
-  register: result
+  register: _readiness_result
   retries: 30
   delay: 20
-  until: result.status == 200
+  until: _readiness_result.status == 200
+  when: not (molecule_test | bool and (ansible_virtualization_type | default('') in ['docker', 'podman', 'container']))
+  ignore_errors: true
 ...

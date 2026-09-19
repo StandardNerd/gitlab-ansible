@@ -2,4 +2,5 @@
 ---
 gls_config_path: "/etc/gitlab/gitlab.rb"
 gls_ssl_path: "/etc/gitlab/ssl"
+_gitlab_service_name: "gitlab-runsvdir"
 ...

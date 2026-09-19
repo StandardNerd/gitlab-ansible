@@ -20,6 +20,8 @@ gls_ssl_enabled: true
 gls_ssl_cert_path: "/etc/gitlab/ssl/{{ gls_domain }}.crt"
 gls_ssl_key_path: "/etc/gitlab/ssl/{{ gls_domain }}.key"
 gls_ssl_self_signed: true
+gls_ssl_cert_src: ""
+gls_ssl_key_src: ""
 crt_format: "crt"
 
 molecule_test: false

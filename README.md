@@ -203,7 +203,7 @@ Install and configure a GitLab Runner running inside a **Podman** container, wit
 The role is divided into six task phases:
 
 1. **`assert.yml`**: Validates required variables before any system change is made.
-2. **`install_podman.yml`**: Installs Podman and supporting packages using the appropriate package manager for the target OS family (`dnf` / `apt` / `zypper`). Activates `podman.socket`.
+2. **`install_podman_redhat.yml` / `install_podman_debian.yml`**: Installs Podman and dependencies via native package manager (`dnf` / `apt`), configures SELinux booleans on RHEL (`container_manage_cgroup`) or AppArmor on Ubuntu, and activates `podman.socket`.
 3. **`configure.yml`**: Creates host directories for config, builds, and cache. Renders `config.toml` from a Jinja2 template on first run only.
 4. **`container.yml`**: Pulls the runner OCI image and creates/starts the Podman container. Automatically recreates the container when the image digest changes.
 5. **`register.yml`**: Registers the runner with GitLab using `gitlab-runner register`. Parses the existing `config.toml` first — skips registration if a token is already present (preventing duplicate runners).

@@ -7,8 +7,11 @@
     mode: '0755'
     owner: root
     group: root
-  when: gls_ssl_enabled
+  when: gls_ssl_enabled | bool
 
+# ---------------------------------------------------------------------------
+# Self-signed certificate generation
+# ---------------------------------------------------------------------------
 - name: "SSL: Generate self-signed certificate"
   ansible.builtin.command: >
     openssl req -x509 -nodes -days 3650 -newkey rsa:2048
@@ -18,19 +21,59 @@
   args:
     creates: "{{ gls_ssl_cert_path }}"
   when:
-    - gls_ssl_enabled
-    - gls_ssl_self_signed
+    - gls_ssl_enabled | bool
+    - gls_ssl_self_signed | bool
+  notify: "Reconfigure GitLab"
 
-- name: "SSL: Set permissions on SSL files"
-  ansible.builtin.file:
-    path: "{{ item }}"
+# ---------------------------------------------------------------------------
+# User-provided certificate installation
+# ---------------------------------------------------------------------------
+- name: "SSL: Copy user-provided certificate"
+  ansible.builtin.copy:
+    src: "{{ gls_ssl_cert_src }}"
+    dest: "{{ gls_ssl_cert_path }}"
+    mode: '0644'
+    owner: root
+    group: root
+  when:
+    - gls_ssl_enabled | bool
+    - not (gls_ssl_self_signed | bool)
+    - gls_ssl_cert_src | length > 0
+  notify: "Reconfigure GitLab"
+
+- name: "SSL: Copy user-provided certificate key"
+  ansible.builtin.copy:
+    src: "{{ gls_ssl_key_src }}"
+    dest: "{{ gls_ssl_key_path }}"
     mode: '0600'
     owner: root
     group: root
-  loop:
-    - "{{ gls_ssl_key_path }}"
-    - "{{ gls_ssl_cert_path }}"
   when:
-    - gls_ssl_enabled
-    - gls_ssl_self_signed
+    - gls_ssl_enabled | bool
+    - not (gls_ssl_self_signed | bool)
+    - gls_ssl_key_src | length > 0
+  notify: "Reconfigure GitLab"
+
+# ---------------------------------------------------------------------------
+# Ensure correct file permissions
+# ---------------------------------------------------------------------------
+- name: "SSL: Set permissions on SSL certificate"
+  ansible.builtin.file:
+    path: "{{ gls_ssl_cert_path }}"
+    mode: '0644'
+    owner: root
+    group: root
+  when:
+    - gls_ssl_enabled | bool
+  ignore_errors: true
+
+- name: "SSL: Set permissions on SSL private key"
+  ansible.builtin.file:
+    path: "{{ gls_ssl_key_path }}"
+    mode: '0600'
+    owner: root
+    group: root
+  when:
+    - gls_ssl_enabled | bool
+  ignore_errors: true
 ...

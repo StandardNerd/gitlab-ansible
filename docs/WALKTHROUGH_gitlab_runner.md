@@ -336,15 +336,13 @@ Commit and push. The job should be picked up within seconds and complete success
 
 Validates that required variables are set and have sensible values before any system change is made. The play fails immediately with a clear error message if anything is wrong.
 
-### Phase 2 — `install_podman.yml` — Package installation
+### Phase 2 — `install_podman_redhat.yml` / `install_podman_debian.yml` — Package & security setup
 
-```
-dnf install podman podman-plugins slirp4netns fuse-overlayfs   # RHEL
-apt install podman uidmap slirp4netns fuse-overlayfs            # Debian/Ubuntu
-zypper install podman                                           # SUSE
-```
+Dynamically loads OS-specific tasks based on `ansible_os_family`:
+- **RHEL 9 (`install_podman_redhat.yml`)**: Installs `podman`, `podman-plugins`, `slirp4netns`, `fuse-overlayfs`, and `container-selinux`. Configures the `container_manage_cgroup` SELinux boolean.
+- **Ubuntu Noble (`install_podman_debian.yml`)**: Installs `podman`, `crun`, `uidmap`, `slirp4netns`, and `fuse-overlayfs`. Configures and ensures the AppArmor service is active.
 
-Then activates `podman.socket` via systemd so the Docker-compatible socket is available at `/run/podman/podman.sock`.
+Both variants enable and activate `podman.socket` via systemd so the root Podman socket is available at `/run/podman/podman.sock`.
 
 ### Phase 3 — `configure.yml` — Directories and config
 
