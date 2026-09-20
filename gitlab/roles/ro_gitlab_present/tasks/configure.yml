@@ -22,9 +22,6 @@
     mode: '0600'
   when: _license_file_stat.stat.exists
 
-- name: "Configure: Force Reconfigure GitLab if configuration changed"
-  ansible.builtin.meta: flush_handlers
-
 - name: "Service: Ensure gitlab-runsvdir service is enabled and started"
   ansible.builtin.systemd:
     name: "{{ _gitlab_service_name | default('gitlab-runsvdir') }}"
@@ -38,8 +35,11 @@
     msg: >-
       gitlab-runsvdir service {{ 'is running'
         if (_runsvdir_result.status.ActiveState | default('')) == 'active'
-        else 'not yet available (will start after first reconfigure)' }}
+        else 'not yet available' }}
     verbosity: 1
+
+- name: "Configure: Force Reconfigure GitLab if configuration changed"
+  ansible.builtin.meta: flush_handlers
 
 - name: "Configure: Wait for GitLab to respond"
   ansible.builtin.uri:

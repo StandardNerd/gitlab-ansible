@@ -33,20 +33,20 @@ postgresql['database'] = "{{ gls_external_db_name }}"
 gitlab_rails["ldap_enabled"] = true
 gitlab_rails["ldap_servers"] = YAML.load <<-'EOS'
   main: # 'main' is the Gitlab 'provider ID' of this LDAP server
-  label: "{{ gls_ldap_label }}"
-  host: "{{ gls_ldap_host | default('ldap.example.com') }}"
-  port: "{{ gls_ldap_port }}"
-  uid: "{{ gls_ldap_uid }}"
-  bind_dn: "{{ gls_ldap_bind_dn }}"
-  password: "{{ gls_ldap_bind_password }}"
-  encryption: "{{ gls_ldap_encryption | default('simple_tls') }}"
-  verify_certificates: "{{ gls_ldap_verify_certificates | lower }}"
-  smartcard_auth: "{{ gls_ldap_smartcard_auth | lower }}"
-  active_directory: "{{ gls_ldap_active_directory | lower }}"
-  allow_username_or_email_login: "{{ gls_ldap_allow_username_or_email | lower }}"
-  lowercase_usernames: "{{ gls_ldap_lowercase_usernames | lower }}"
-  block_auto_created_users: "{{ gls_ldap_block_auto_created_users | lower }}"
-  base: "{{ gls_ldap_group_base | default('') }}"
+    label: "{{ gls_ldap_label }}"
+    host: "{{ gls_ldap_host | default('ldap.example.com') }}"
+    port: {{ gls_ldap_port }}
+    uid: "{{ gls_ldap_uid }}"
+    bind_dn: "{{ gls_ldap_bind_dn }}"
+    password: "{{ gls_ldap_bind_password }}"
+    encryption: "{{ gls_ldap_encryption | default('simple_tls') }}"
+    verify_certificates: {{ gls_ldap_verify_certificates | lower }}
+    smartcard_auth: {{ gls_ldap_smartcard_auth | lower }}
+    active_directory: {{ gls_ldap_active_directory | lower }}
+    allow_username_or_email_login: {{ gls_ldap_allow_username_or_email | lower }}
+    lowercase_usernames: {{ gls_ldap_lowercase_usernames | lower }}
+    block_auto_created_users: {{ gls_ldap_block_auto_created_users | lower }}
+    base: "{{ gls_ldap_group_base | default('') }}"
 EOS
 
 gitlab_rails["default_can_create_project"] = {{ gls_ldap_can_create_project | lower }}
@@ -56,7 +56,7 @@ gitlab_rails["ldap_enabled"] = false
 {% endif %}
 
 {% if molecule_test %}
-gitlab_rails["monitoring_whitelist"] = ["127.0.0.1", "::1"]
+gitlab_rails["monitoring_whitelist"] = ["127.0.0.0/8", "::1"]
 {% else %}
-gitlab_rails["monitoring_whitelist"] = ["{{ enable_ip_list }}", "127.0.0.1"]
+gitlab_rails["monitoring_whitelist"] = ["127.0.0.0/8", "::1", "{{ enable_ip_list | regex_replace('^https?://', '') }}"]
 {% endif %}

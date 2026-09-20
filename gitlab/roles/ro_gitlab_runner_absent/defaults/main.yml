@@ -7,7 +7,7 @@
 # ---------------------------------------------------------------------------
 
 # URL of the GitLab instance the runner is registered with
-gitlab_url: "http://gitlab.example.com"
+gitlab_url: "https://192.168.1.129"
 
 # ---------------------------------------------------------------------------
 # Runner / container identity  (must match what was used during installation)

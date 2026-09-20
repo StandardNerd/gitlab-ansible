@@ -7,11 +7,11 @@
 # ---------------------------------------------------------------------------
 
 # URL of the GitLab instance to register the runner with
-gitlab_url: "http://gitlab.example.com"
+gitlab_url: "https://192.168.1.129"
 
 # Registration token obtained from GitLab (Admin > CI/CD > Runners)
 # Override via vault or extra-vars; do NOT store plaintext in source control
-gitlab_runner_registration_token: "REPLACE_ME"
+gitlab_runner_registration_token: "4gcyYJNxXUxMZKji5WpA"
 
 # Optional: existing runner authentication token for re-registration / update.
 # When set, the role uses it instead of re-registering from scratch.
@@ -89,6 +89,9 @@ gitlab_runner_enable_podman_socket: true
 
 # Run the runner container as a specific UID:GID (empty = podman default)
 gitlab_runner_container_user: ""
+
+# Additional volumes to mount into the runner container itself
+gitlab_runner_extra_volumes: []
 
 # Additional environment variables to pass into the runner container.
 # Example: ["DOCKER_HOST=unix:///run/podman/podman.sock"]

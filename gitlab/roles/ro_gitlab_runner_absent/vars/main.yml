@@ -13,5 +13,6 @@ _runner_dirs:
   - "{{ glra_config_dir }}"
   - "{{ glra_builds_dir }}"
   - "{{ glra_cache_dir }}"
+  - "/var/lib/gitlab-runner"
 
 ...

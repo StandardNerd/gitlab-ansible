@@ -1,0 +1,33 @@
+#SPDX-License-Identifier: MIT-0
+---
+# tasks/main.yml — entry point for ro_gitlab_runner_absent
+
+- name: "Main: Assert required variables are defined"
+  ansible.builtin.include_tasks: "assert.yml"
+
+- name: "Main: Include OS-specific variables"
+  ansible.builtin.include_vars: "{{ ansible_facts['os_family'] }}.yml"
+
+- name: "Main: Unregister runner from GitLab"
+  ansible.builtin.include_tasks: "unregister.yml"
+  when: glra_unregister | bool
+
+- name: "Main: Stop and remove systemd service"
+  ansible.builtin.include_tasks: "systemd.yml"
+
+- name: "Main: Stop and remove runner container and image"
+  ansible.builtin.include_tasks: "container.yml"
+
+- name: "Main: Remove runner data directories"
+  ansible.builtin.include_tasks: "cleanup.yml"
+  when: glra_remove_data | bool
+
+- name: "Main: Uninstall Podman dependencies (optional)"
+  ansible.builtin.include_tasks: "uninstall_podman.yml"
+  when: glra_remove_podman | bool or glra_remove_podman_socket | bool
+
+- name: "Main: Decommissioning complete"
+  ansible.builtin.debug:
+    msg: "GitLab Runner '{{ glra_container_name }}' has been decommissioned from {{ inventory_hostname }}."
+
+...

@@ -16,8 +16,9 @@
   ansible.builtin.set_fact:
     _existing_runner_token: >-
       {{
-        (_config_toml_raw.content | b64decode)
+        ((_config_toml_raw.content | b64decode)
         | regex_search('token\s*=\s*"([^"]+)"', '\1')
+        | default([], true))
         | first
         | default('')
       }}
@@ -27,6 +28,11 @@
   ansible.builtin.set_fact:
     _existing_runner_token: ""
   when: _config_toml_raw.content is not defined
+
+- name: "Register: Check if custom TLS CA cert exists"
+  ansible.builtin.stat:
+    path: "{{ gitlab_runner_config_dir }}/certs/{{ _gitlab_host | default(gitlab_url | regex_replace('^https?://', '') | regex_replace('(:[0-9]+)?(/.*)?$', '')) }}.crt"
+  register: _runner_cert_stat
 
 # ---------------------------------------------------------------------------
 # Register only when:
@@ -45,6 +51,9 @@
     --tag-list "{{ gitlab_runner_tags }}"
     --run-untagged="{{ gitlab_runner_run_untagged | lower }}"
     --locked="{{ gitlab_runner_locked | lower }}"
+    {% if _runner_cert_stat.stat.exists | default(false) %}
+    --tls-ca-file "/etc/gitlab-runner/certs/{{ _gitlab_host | default(gitlab_url | regex_replace('^https?://', '') | regex_replace('(:[0-9]+)?(/.*)?$', '')) }}.crt"
+    {% endif %}
     {% if gitlab_runner_executor == 'docker' %}
     --docker-image "{{ gitlab_runner_default_image }}"
     --docker-privileged="{{ gitlab_runner_privileged | lower }}"

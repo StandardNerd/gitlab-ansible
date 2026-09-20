@@ -26,14 +26,14 @@ crt_format: "crt"
 
 molecule_test: false
 
-gls_external_url: "http://{{ gls_domain }}"
-gls_sign_in_url: "http://{{ gls_domain }}/users/sign_in"
-enable_ip_list: "http://{{ gls_domain }}/24"
-health_check_url: "http://{{ gls_domain }}/-/health_check"
-readiness_check_url: "http://{{ gls_domain }}/-/readiness"
-liveness_check_url: "http://{{ gls_domain }}/-/liveness"
+gls_external_url: "{{ 'https' if gls_ssl_enabled | bool else 'http' }}://{{ gls_domain }}"
+gls_sign_in_url: "{{ 'https' if gls_ssl_enabled | bool else 'http' }}://{{ gls_domain }}/users/sign_in"
+enable_ip_list: "{{ gls_domain }}/24"
+health_check_url: "{{ 'https' if gls_ssl_enabled | bool else 'http' }}://{{ gls_domain }}/-/health_check"
+readiness_check_url: "{{ 'https' if gls_ssl_enabled | bool else 'http' }}://{{ gls_domain }}/-/readiness"
+liveness_check_url: "{{ 'https' if gls_ssl_enabled | bool else 'http' }}://{{ gls_domain }}/-/liveness"
 gls_api_version: "v4"
-gls_api_url: "http://{{ gls_domain }}/-/api/{{ gls_api_version }}"
+gls_api_url: "{{ 'https' if gls_ssl_enabled | bool else 'http' }}://{{ gls_domain }}/-/api/{{ gls_api_version }}"
 
 gls_admin_username: "gls_admin"
 gls_admin_password: "gls_initial_adm_pwd"

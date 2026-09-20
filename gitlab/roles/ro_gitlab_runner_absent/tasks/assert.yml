@@ -1,0 +1,19 @@
+#SPDX-License-Identifier: MIT-0
+---
+# tasks/assert.yml — validate variables for ro_gitlab_runner_absent
+
+- name: "Assert: glra_container_name is defined and non-empty"
+  ansible.builtin.assert:
+    that:
+      - glra_container_name is defined
+      - glra_container_name | length > 0
+    fail_msg: "glra_container_name must be a non-empty string"
+    quiet: true
+
+- name: "Assert: glra_config_dir is defined and non-empty"
+  ansible.builtin.assert:
+    that:
+      - glra_config_dir is defined
+      - glra_config_dir | length > 0
+    fail_msg: "glra_config_dir must be a non-empty string"
+    quiet: true

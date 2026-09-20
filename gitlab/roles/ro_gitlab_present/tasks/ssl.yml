@@ -18,6 +18,7 @@
     -keyout {{ gls_ssl_key_path }}
     -out {{ gls_ssl_cert_path }}
     -subj "/C=US/ST=State/L=City/O=Organization/CN={{ gls_domain }}"
+    -addext "subjectAltName = {% if gls_domain is match('^[0-9.]+$') %}IP:{{ gls_domain }},IP:127.0.0.1{% else %}DNS:{{ gls_domain }},DNS:localhost,IP:127.0.0.1{% endif %}"
   args:
     creates: "{{ gls_ssl_cert_path }}"
   when:

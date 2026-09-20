@@ -30,7 +30,7 @@
         ]
         + ([ _podman_socket_path ~ ':' ~ _podman_socket_path ]
            if gitlab_runner_enable_podman_socket | bool else [])
-        + gitlab_runner_volumes
+        + (gitlab_runner_extra_volumes | default([]))
       }}
 
 # ---------------------------------------------------------------------------
@@ -80,7 +80,7 @@
         if gitlab_runner_container_env | length > 0
         else {}
       }}
-    user: "{{ gitlab_runner_container_user | default(omit) }}"
+    user: "{{ gitlab_runner_container_user if (gitlab_runner_container_user | default('') | length > 0) else omit }}"
   register: _runner_container
   notify: "Restart gitlab-runner container"
 

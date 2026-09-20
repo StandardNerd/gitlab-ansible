@@ -1,0 +1,35 @@
+#SPDX-License-Identifier: MIT-0
+---
+# tasks/systemd.yml — stop and remove systemd service unit for the runner container
+
+- name: "Systemd: Stop and disable runner service"
+  ansible.builtin.systemd:
+    name: "{{ glra_systemd_service }}"
+    state: stopped
+    enabled: false
+  register: _service_stop
+  failed_when: false
+
+- name: "Systemd: Remove generated systemd service unit file"
+  ansible.builtin.file:
+    path: "{{ _systemd_unit_dir }}/{{ glra_systemd_service }}.service"
+    state: absent
+  notify: "Reload systemd daemon"
+
+- name: "Systemd: Remove ctr-id file if present"
+  ansible.builtin.file:
+    path: "/run/{{ glra_systemd_service }}.ctr-id"
+    state: absent
+  failed_when: false
+
+- name: "Systemd: Flush handlers to reload systemd daemon"
+  ansible.builtin.meta: flush_handlers
+
+- name: "Systemd: Reset failed service state if needed"
+  ansible.builtin.command: >
+    systemctl reset-failed {{ glra_systemd_service }}
+  register: _reset_failed
+  changed_when: false
+  failed_when: false
+
+...

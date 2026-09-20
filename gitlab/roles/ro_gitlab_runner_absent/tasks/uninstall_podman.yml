@@ -1,0 +1,38 @@
+#SPDX-License-Identifier: MIT-0
+---
+# tasks/uninstall_podman.yml — optionally remove Podman and its socket
+
+- name: "Podman: Stop and disable podman.socket"
+  ansible.builtin.systemd:
+    name: podman.socket
+    state: stopped
+    enabled: false
+  when: glra_remove_podman_socket | bool or glra_remove_podman | bool
+  failed_when: false
+
+- name: "Podman: Remove Podman packages (RedHat)"
+  ansible.builtin.dnf:
+    name: "{{ _podman_pkgs }}"
+    state: absent
+  when:
+    - glra_remove_podman | bool
+    - ansible_facts['os_family'] == 'RedHat'
+
+- name: "Podman: Remove Podman packages (Debian)"
+  ansible.builtin.apt:
+    name: "{{ _podman_pkgs }}"
+    state: absent
+    purge: true
+    autoremove: true
+  when:
+    - glra_remove_podman | bool
+    - ansible_facts['os_family'] == 'Debian'
+
+- name: "Podman: Clean up /etc/containers configuration"
+  ansible.builtin.file:
+    path: "/etc/containers"
+    state: absent
+  when: glra_remove_podman | bool
+  failed_when: false
+
+...

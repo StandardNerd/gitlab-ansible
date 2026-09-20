@@ -1,0 +1,24 @@
+---
+# pb_gitlab_runner_absent.yml
+# Decommission and remove a GitLab Runner (Podman) from target hosts.
+#
+# Usage:
+#   ansible-playbook pb_gitlab_runner_absent.yml \
+#     -i inventory/hosts.yml \
+#     -l gitlab-runner \
+#     --ask-vault-pass
+
+- name: "Decommission GitLab Runner (Podman)"
+  hosts: gitlab-runner
+  vars:
+    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+  gather_facts: true
+  become: true
+  vars_files:
+    - ./credentials.yml
+
+  tasks:
+    - name: "Include ro_gitlab_runner_absent role"
+      ansible.builtin.include_role:
+        name: ro_gitlab_runner_absent
+...

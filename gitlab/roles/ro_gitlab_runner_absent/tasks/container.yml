@@ -1,0 +1,24 @@
+#SPDX-License-Identifier: MIT-0
+---
+# tasks/container.yml — remove the runner container and optional runner image
+
+- name: "Container: Stop and remove GitLab Runner container"
+  containers.podman.podman_container:
+    name: "{{ glra_container_name }}"
+    state: absent
+  register: _container_remove
+  failed_when: false
+
+- name: "Container: Display container removal status"
+  ansible.builtin.debug:
+    msg: "Container '{{ glra_container_name }}' removed: {{ _container_remove.changed | default(false) }}"
+    verbosity: 1
+
+- name: "Container: Remove GitLab Runner OCI image"
+  containers.podman.podman_image:
+    name: "{{ glra_runner_image }}"
+    state: absent
+  when: glra_remove_image | bool
+  failed_when: false
+
+...

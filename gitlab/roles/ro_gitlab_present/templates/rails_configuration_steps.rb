@@ -1,25 +1,41 @@
 puts "Create admin token"
-token = User.find_by_id(1).personal_access_tokens.create(name: "admin_token", scopes: ["api"], expires_at: Time.now + 11.months)
-token.set_token("admin_token")
-token.save!
-puts "Admin token created: #{token.token}"
-
-puts "Update admin user"
 admin_user = User.find_by_id(1)
-admin_user.username = "{{ gls_admin_username }}"
-admin_user.password = "{{ gls_admin_password }}"
-admin_user.password_confirmation = "{{ gls_admin_password }}"
-admin_user.save!
+if admin_user
+  existing_token = admin_user.personal_access_tokens.find_by(name: "admin_token")
+  if existing_token
+    puts "Admin token already exists: #{existing_token.name}"
+  else
+    token = admin_user.personal_access_tokens.create(name: "admin_token", scopes: ["api"], expires_at: Time.now + 11.months)
+    token.set_token("admin_token")
+    token.save!
+    puts "Admin token created: #{token.token}"
+  end
+
+  puts "Update admin user"
+  admin_user.username = "{{ gls_admin_username }}"
+  admin_user.password = "{{ gls_admin_password }}"
+  admin_user.password_confirmation = "{{ gls_admin_password }}"
+  admin_user.save!
+end
 
 puts "Update Appearance"
 appearance = Appearance.first_or_create
-appearance.logo = File.open("{{ gitlab_rb_scripts_tempdir.path }}/KAPO-Logo.SVG")
-appearance.header_logo = File.open("{{ gitlab_rb_scripts_tempdir.path }}/KAPO-Logo.SVG")
-appearance.save!
+logo_file = "{{ gitlab_rb_scripts_tempdir.path }}/KAPO-Logo.SVG"
+if File.exist?(logo_file)
+  appearance.logo = File.open(logo_file)
+  appearance.header_logo = File.open(logo_file)
+  appearance.save!
+end
 
 
 # create initial admin user
 def safe_create_user(username, email, name, password, admin: false)
+  existing = User.find_by(username: username) || User.find_by(email: email)
+  if existing
+    puts "User already exists: #{username}"
+    return existing
+  end
+
   user = User.new(
     username: username,
     email: email,

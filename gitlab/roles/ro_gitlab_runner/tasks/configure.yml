@@ -26,6 +26,25 @@
     group: root
     mode: "0755"
 
+- name: "Configure: Create certs directory"
+  ansible.builtin.file:
+    path: "{{ gitlab_runner_config_dir }}/certs"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: "Configure: Extract hostname from gitlab_url"
+  ansible.builtin.set_fact:
+    _gitlab_host: "{{ gitlab_url | regex_replace('^https?://', '') | regex_replace('(:[0-9]+)?(/.*)?$', '') }}"
+
+- name: "Configure: Trust self-signed certificate from GitLab server"
+  ansible.builtin.shell: |
+    openssl s_client -showcerts -connect {{ _gitlab_host }}:443 </dev/null 2>/dev/null | openssl x509 -outform PEM > {{ gitlab_runner_config_dir }}/certs/{{ _gitlab_host }}.crt
+  when: gitlab_url.startswith('https://')
+  changed_when: false
+  failed_when: false
+
 # Render config.toml only when the file does not yet exist OR when the runner
 # is not registered (token absent).  Once the runner is registered,
 # GitLab Runner rewrites the file — we avoid overwriting it on every run.

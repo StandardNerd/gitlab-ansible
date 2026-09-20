@@ -1,0 +1,74 @@
+#SPDX-License-Identifier: MIT-0
+---
+# tasks/unregister.yml — unregister the runner from the GitLab instance
+
+- name: "Unregister: Check if runner container is running"
+  ansible.builtin.command: >
+    podman inspect --format "{{ '{{' }}.State.Running{{ '}}' }}" {{ glra_container_name }}
+  register: _runner_container_running
+  changed_when: false
+  failed_when: false
+
+- name: "Unregister: Check if config.toml exists on host"
+  ansible.builtin.stat:
+    path: "{{ _runner_config_path }}"
+  register: _runner_config_stat
+
+- name: "Unregister: Read config.toml to extract token"
+  ansible.builtin.slurp:
+    src: "{{ _runner_config_path }}"
+  register: _runner_config_raw
+  when: _runner_config_stat.stat.exists
+
+- name: "Unregister: Extract token from config.toml"
+  ansible.builtin.set_fact:
+    _existing_token: >-
+      {{
+        ((_runner_config_raw.content | b64decode)
+        | regex_search('token\s*=\s*"([^"]+)"', '\1')
+        | default([], true))
+        | first
+        | default('')
+      }}
+  when:
+    - _runner_config_stat.stat.exists
+    - _runner_config_raw.content is defined
+
+- name: "Unregister: Unregister all runners via running container"
+  ansible.builtin.command: >
+    podman exec {{ glra_container_name }} gitlab-runner unregister --all-runners
+  register: _unregister_result
+  changed_when: _unregister_result.rc == 0
+  failed_when: false
+  when:
+    - glra_unregister | bool
+    - (_runner_container_running.stdout | default('')) == 'true'
+
+- name: "Unregister: Unregister all runners via one-off container (when container stopped)"
+  ansible.builtin.command: >
+    podman run --rm
+    -v {{ glra_config_dir }}:/etc/gitlab-runner:Z
+    {{ glra_runner_image }}
+    gitlab-runner unregister --all-runners
+  register: _unregister_stopped_result
+  changed_when: _unregister_stopped_result.rc == 0
+  failed_when: false
+  when:
+    - glra_unregister | bool
+    - (_runner_container_running.stdout | default('')) != 'true'
+    - _runner_config_stat.stat.exists | default(false)
+    - (_existing_token | default('') | length > 0)
+
+- name: "Unregister: Display unregister result"
+  ansible.builtin.debug:
+    msg: >-
+      {{
+        _unregister_result.stdout_lines
+        if (_unregister_result is defined and _unregister_result.stdout_lines is defined and _unregister_result.stdout_lines | length > 0)
+        else (_unregister_stopped_result.stdout_lines
+              if (_unregister_stopped_result is defined and _unregister_stopped_result.stdout_lines is defined and _unregister_stopped_result.stdout_lines | length > 0)
+              else ['Runner unregistration skipped, container not present, or no active token found.'])
+      }}
+    verbosity: 1
+
+...

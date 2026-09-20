@@ -1,0 +1,18 @@
+#SPDX-License-Identifier: MIT-0
+---
+# tasks/cleanup.yml — remove configuration, builds, and cache directories
+
+- name: "Cleanup: Remove runner directories"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop: "{{ _runner_dirs }}"
+  when: glra_remove_data | bool
+
+- name: "Cleanup: Display cleanup status"
+  ansible.builtin.debug:
+    msg: "Runner configuration, builds, and cache directories have been removed."
+    verbosity: 1
+  when: glra_remove_data | bool
+
+...
