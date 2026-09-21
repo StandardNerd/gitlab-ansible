@@ -22,9 +22,11 @@
     state: started
     enabled: true
 
-- name: "Prepare: Enable ufw"
+- name: "Prepare: Allow SSH in ufw (before enabling, to avoid lockout)"
   community.general.ufw:
-    state: enabled
+    rule: allow
+    port: "{{ ansible_port | default(22) }}"
+    proto: tcp
   when: gls_firewall_enabled
 
 - name: "Prepare: Open webserver ports in ufw"
@@ -33,6 +35,11 @@
     port: "{{ '443' if item == 'https' else '80' }}"
     proto: tcp
   loop: "{{ gls_web_ports }}"
+  when: gls_firewall_enabled
+
+- name: "Prepare: Enable ufw"
+  community.general.ufw:
+    state: enabled
   when: gls_firewall_enabled
   notify: "Reload ufw"
 ...
