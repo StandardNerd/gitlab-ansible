@@ -18,7 +18,7 @@
   ansible.builtin.dnf:
     name: "{{ gls_os_packages }}"
     state: present
-    use_backend: dnf4
+    use_backend: "{{ ('dnf4' if ansible_version.full is version('2.15', '>=') else omit) }}"
 
 - name: "Prepare: Start firewall daemon"
   ansible.builtin.service:
