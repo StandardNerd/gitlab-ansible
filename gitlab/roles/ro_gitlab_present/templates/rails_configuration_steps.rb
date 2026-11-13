@@ -80,4 +80,4 @@ def safe_create_user(username, email, name, password, admin: false)
 end
 
 # Usage:
-safe_create_user('joonki', 'joon-ki.choi@swisscom.com', 'Joon-Ki Choi', 'SecurePassword123!', admin: true)
+safe_create_user('example_user', 'example_user@example.com', 'Example User', 'SecurePassword123!', admin: true)
