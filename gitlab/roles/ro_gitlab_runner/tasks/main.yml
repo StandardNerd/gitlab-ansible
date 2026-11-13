@@ -6,21 +6,25 @@
   ansible.builtin.include_tasks: "assert.yml"
 
 - name: "Main: Include OS-specific variables"
-  ansible.builtin.include_vars: "{{ ansible_facts['os_family'] }}.yml"
+  ansible.builtin.include_vars: "{{ ansible_os_family }}.yml"
 
 - name: "Main: Install Podman and system dependencies (RedHat)"
   ansible.builtin.include_tasks: "install_podman_redhat.yml"
-  when: ansible_facts['os_family'] == 'RedHat'
+  when: ansible_os_family == 'RedHat'
 
 - name: "Main: Install Podman and system dependencies (Debian)"
   ansible.builtin.include_tasks: "install_podman_debian.yml"
-  when: ansible_facts['os_family'] == 'Debian'
+  when: ansible_os_family == 'Debian'
 
 - name: "Main: Create required directories and configuration"
   ansible.builtin.include_tasks: "configure.yml"
 
 - name: "Main: Pull GitLab Runner image and start container"
   ansible.builtin.include_tasks: "container.yml"
+
+- name: "Main: Manage GitLab admin token and runner credentials"
+  ansible.builtin.include_tasks: "admin_token.yml"
+  when: gitlab_runner_manage_admin_token | default(true) | bool
 
 - name: "Main: Register runner with GitLab"
   ansible.builtin.include_tasks: "register.yml"

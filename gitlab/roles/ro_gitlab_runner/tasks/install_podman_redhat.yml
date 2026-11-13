@@ -22,7 +22,9 @@
     name: container_manage_cgroup
     state: true
     persistent: true
-  when: gitlab_runner_configure_selinux | bool
+  when:
+    - gitlab_runner_configure_selinux | bool
+    - ansible_distribution_major_version | int < 9
 
 - name: "Configure: Enable and start podman.socket (root)"
   ansible.builtin.systemd:

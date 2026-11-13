@@ -1,0 +1,135 @@
+#SPDX-License-Identifier: MIT-0
+---
+# tasks/admin_token.yml — ensure GitLab admin token exists and resolve runner tokens
+
+- name: "Admin Token: Check config.toml to detect if runner is already registered"
+  ansible.builtin.slurp:
+    src: "{{ _runner_config_path }}"
+  register: _config_toml_for_token
+  failed_when: false
+
+- name: "Admin Token: Determine existing runner token"
+  ansible.builtin.set_fact:
+    _existing_runner_token: >-
+      {{
+        ((_config_toml_for_token.content | b64decode)
+        | regex_search('token\s*=\s*"([^"]+)"', '\1')
+        | default([], true))
+        | first
+        | default('')
+      }}
+  when:
+    - _config_toml_for_token.content is defined
+
+- name: "Admin Token: Set _existing_runner_token to empty when config absent"
+  ansible.builtin.set_fact:
+    _existing_runner_token: ""
+  when:
+    - _config_toml_for_token.content is not defined
+
+- name: "Admin Token: Verify GitLab admin token via REST API"
+  ansible.builtin.uri:
+    url: "{{ gitlab_url }}/api/v4/user"
+    method: GET
+    headers:
+      PRIVATE-TOKEN: "{{ gitlab_admin_token }}"
+    validate_certs: false
+    status_code: [200, 401, 403]
+  register: _admin_token_api_check
+  failed_when: false
+  when:
+    - gitlab_admin_token | default('') | length > 0
+
+- name: "Admin Token: Provision GitLab admin token on GitLab server"
+  ansible.builtin.command: >
+    gitlab-rails runner "
+    user = User.find_by(username: '{{ gitlab_admin_username }}') || User.find_by_id(1) || User.admins.first;
+    if user;
+      tok = user.personal_access_tokens.find_by(name: '{{ gitlab_admin_token_name }}');
+      if tok.nil?;
+        tok = user.personal_access_tokens.create!(name: '{{ gitlab_admin_token_name }}', scopes: ['api'], expires_at: 1.year.from_now);
+      end;
+      tok.set_token('{{ gitlab_admin_token }}');
+      tok.save!;
+      puts 'ADMIN_TOKEN_SUCCESS';
+    else;
+      puts 'ERROR_NO_ADMIN_USER';
+      exit 1;
+    end
+    "
+  delegate_to: "{{ gitlab_server_host }}"
+  become: true
+  register: _provision_admin_token_result
+  changed_when: "'ADMIN_TOKEN_SUCCESS' in _provision_admin_token_result.stdout"
+  when:
+    - gitlab_runner_manage_admin_token | bool
+    - (_admin_token_api_check.status | default(0) != 200)
+    - (gitlab_server_host in groups['all'] or gitlab_server_host in hostvars)
+
+- name: "Admin Token: Retrieve instance runner registration token from GitLab server"
+  ansible.builtin.command: >
+    gitlab-rails runner "puts Gitlab::CurrentSettings.runners_registration_token"
+  delegate_to: "{{ gitlab_server_host }}"
+  become: true
+  register: _fetched_reg_token
+  changed_when: false
+  failed_when: false
+  when:
+    - (_existing_runner_token | default('') | length == 0)
+    - (gitlab_runner_token | default('') | length == 0)
+    - (gitlab_runner_registration_token | default('') | length == 0 or gitlab_runner_registration_token in ['4gcyYJNxXUxMZKji5WpA', 'REPLACE_ME'])
+    - (gitlab_server_host in groups['all'] or gitlab_server_host in hostvars)
+
+- name: "Admin Token: Set registration token fact from server"
+  ansible.builtin.set_fact:
+    gitlab_runner_registration_token: "{{ _fetched_reg_token.stdout_lines | last | trim }}"
+  when:
+    - _fetched_reg_token is defined
+    - _fetched_reg_token.rc | default(1) == 0
+    - _fetched_reg_token.stdout | default('') | trim | length > 0
+
+- name: "Admin Token: Create runner via GitLab REST API using admin token if registration token is unavailable"
+  ansible.builtin.uri:
+    url: "{{ gitlab_url }}/api/v4/user/runners"
+    method: POST
+    headers:
+      PRIVATE-TOKEN: "{{ gitlab_admin_token }}"
+      Content-Type: "application/json"
+    body_format: json
+    body:
+      runner_type: "instance_type"
+      description: "{{ gitlab_runner_name }}"
+      tag_list: "{{ gitlab_runner_tags.split(',') if gitlab_runner_tags is string else gitlab_runner_tags }}"
+      run_untagged: "{{ gitlab_runner_run_untagged | bool }}"
+      locked: "{{ gitlab_runner_locked | bool }}"
+    validate_certs: false
+    status_code: [200, 201]
+  register: _api_created_runner
+  changed_when: true
+  when:
+    - (_existing_runner_token | default('') | length == 0)
+    - (gitlab_runner_token | default('') | length == 0)
+    - (gitlab_runner_registration_token | default('') | length == 0 or gitlab_runner_registration_token in ['4gcyYJNxXUxMZKji5WpA', 'REPLACE_ME'])
+    - (gitlab_admin_token | default('') | length > 0)
+  failed_when: false
+
+- name: "Admin Token: Set gitlab_runner_token from API response"
+  ansible.builtin.set_fact:
+    gitlab_runner_token: "{{ _api_created_runner.json.token }}"
+  when:
+    - _api_created_runner is defined
+    - _api_created_runner.json is defined
+    - _api_created_runner.json.token is defined
+
+- name: "Admin Token: Display token resolution summary"
+  ansible.builtin.debug:
+    msg: >-
+      {% if _existing_runner_token | default('') | length > 0 %}
+      Runner already registered with token ending in ...{{ _existing_runner_token[-4:] }}.
+      {% elif gitlab_runner_token | default('') | length > 0 %}
+      Runner authentication token resolved via API: ...{{ gitlab_runner_token[-4:] }}.
+      {% elif gitlab_runner_registration_token | default('') | length > 0 %}
+      Runner registration token resolved: ...{{ gitlab_runner_registration_token[-4:] }}.
+      {% else %}
+      Notice: No runner token could be determined.
+      {% endif %}

@@ -12,9 +12,18 @@ concurrent = {{ gitlab_runner_concurrent | int }}
 check_interval = {{ gitlab_runner_check_interval | int }}
 log_level = "{{ gitlab_runner_log_level }}"
 log_format = "{{ gitlab_runner_log_format }}"
+{% if gitlab_runner_listen_address | default('') | length > 0 %}
+listen_address = "{{ gitlab_runner_listen_address }}"
+{% endif %}
 
 [session_server]
-  session_timeout = 1800
+  session_timeout = {{ gitlab_runner_session_timeout | default(1800) }}
+{% if gitlab_runner_session_server_listen_address | default('') | length > 0 %}
+  listen_address = "{{ gitlab_runner_session_server_listen_address }}"
+{% endif %}
+{% if gitlab_runner_session_server_advertise_address | default('') | length > 0 %}
+  advertise_address = "{{ gitlab_runner_session_server_advertise_address }}"
+{% endif %}
 
 {% if gitlab_runner_token | length > 0 %}
 [[runners]]
@@ -22,6 +31,7 @@ log_format = "{{ gitlab_runner_log_format }}"
   url = "{{ gitlab_url }}"
   token = "{{ gitlab_runner_token }}"
   executor = "{{ gitlab_runner_executor }}"
+  request_concurrency = {{ gitlab_runner_request_concurrency | default(gitlab_runner_concurrent) | int }}
 
 {% if gitlab_runner_executor == "docker" %}
   [runners.docker]

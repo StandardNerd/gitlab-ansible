@@ -2,10 +2,10 @@
 ---
 _podman_pkgs:
   - podman
-  - podman-plugins
   - slirp4netns
   - fuse-overlayfs
   - container-selinux
+  - openssl
 
 _firewall_service: firewalld
 _selinux_packages:

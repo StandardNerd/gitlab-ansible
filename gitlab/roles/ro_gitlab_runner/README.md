@@ -31,9 +31,15 @@ Variables can be overridden in inventory `host_vars`/`group_vars`, playbook `var
 
 | Variable | Default | Description |
 | :--- | :--- | :--- |
-| `gitlab_url` | `https://192.168.1.129` | URL of the target GitLab instance |
-| `gitlab_runner_registration_token` | `4gcyYJNxXUxMZKji5WpA` | Instance registration token from GitLab (**Admin > CI/CD > Runners**) |
-| `gitlab_runner_token` | `""` | Optional pre-existing runner authentication token (`glrt-...`). When set, registration is skipped |
+| `gitlab_url` | `https://{{ hostvars[gitlab_server_host]['ansible_host'] ... }}` | URL of the target GitLab instance |
+| `gitlab_server_host` | `gitlab-server` | Inventory hostname of the GitLab server (for token delegation) |
+| `gitlab_runner_manage_admin_token` | `true` | Automatically verify/provision admin token & resolve runner tokens from GitLab server |
+| `gitlab_admin_username` | `gls_admin` | Admin username on GitLab server used to provision tokens |
+| `gitlab_admin_password` | `gls_initial_adm_pwd` | Admin password on GitLab server |
+| `gitlab_admin_token_name` | `admin_token` | Personal access token name on the GitLab server |
+| `gitlab_admin_token` | `admin_token` | Admin personal access token used for REST API validation & runner creation |
+| `gitlab_runner_registration_token` | `""` | Instance registration token from GitLab (**Admin > CI/CD > Runners**). When empty and admin token management is enabled, auto-resolved from server |
+| `gitlab_runner_token` | `""` | Runner authentication token (`glrt-...`). When set, registration uses this token or is skipped if pre-configured |
 
 ### Runner Identity
 

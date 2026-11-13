@@ -11,53 +11,20 @@
       'gitlab_url' must be set to the URL of your GitLab instance.
       Example: gitlab_url: "https://gitlab.example.com"
 
-- name: "Assert: Attempt to resolve admin token from /tmp/token.txt or server file"
-  ansible.builtin.slurp:
-    src: "{{ item }}"
-  delegate_to: "{{ gitlab_server_host | default('gitlab-server') }}"
-  register: _assert_server_token_raw
-  loop:
-    - "{{ gitlab_admin_token_file | default('/tmp/token.txt') }}"
-    - "{{ gitlab_server_runner_token_file | default('/etc/gitlab/gitlab_runner_token') }}"
-  when:
-    - gitlab_runner_token | default('') | length == 0
-    - (gitlab_runner_registration_token | default('') | length == 0) or
-      (gitlab_runner_registration_token == '4gcyYJNxXUxMZKji5WpA') or
-      (gitlab_runner_registration_token == 'REPLACE_ME')
-  ignore_errors: true
-  no_log: true
-
-- name: "Assert: Set registration token from slurped server file"
-  ansible.builtin.set_fact:
-    gitlab_runner_registration_token: >-
-      {{
-        (_assert_server_token_raw.results
-        | selectattr('content', 'defined')
-        | map(attribute='content')
-        | map('b64decode')
-        | map('trim')
-        | select('length')
-        | list
-        | first) | default('', true)
-      }}
-  when:
-    - _assert_server_token_raw.results is defined
-    - (_assert_server_token_raw.results | selectattr('content', 'defined') | list | length) > 0
-  no_log: true
-
-- name: "Assert: registration token is defined when no runner token is provided"
+- name: "Assert: registration token is defined when no runner token or admin token management is provided"
   ansible.builtin.assert:
     that:
       - gitlab_runner_registration_token is defined
       - gitlab_runner_registration_token | length > 0
       - gitlab_runner_registration_token != "REPLACE_ME"
-      - gitlab_runner_registration_token != "4gcyYJNxXUxMZKji5WpA"
     fail_msg: >
       'gitlab_runner_registration_token' must be set to the registration token
-      from your GitLab instance (Admin > CI/CD > Runners) or be readable from
-      '{{ gitlab_server_runner_token_file | default('/etc/gitlab/gitlab_runner_token') }}'
-      on host '{{ gitlab_server_host | default('gitlab-server') }}'.
-  when: gitlab_runner_token | default('') | length == 0
+      from your GitLab instance (Admin > CI/CD > Runners) when 'gitlab_runner_token' is not supplied
+      and 'gitlab_runner_manage_admin_token' is false.
+      Use Ansible Vault to encrypt this value.
+  when:
+    - gitlab_runner_token | default('') | length == 0
+    - not (gitlab_runner_manage_admin_token | default(true) | bool)
 
 - name: "Assert: concurrent jobs value is a positive integer"
   ansible.builtin.assert:

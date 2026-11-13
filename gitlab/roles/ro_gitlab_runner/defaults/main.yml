@@ -3,30 +3,31 @@
 # defaults file for ro_gitlab_runner
 
 # ---------------------------------------------------------------------------
-# GitLab instance connection
+# GitLab instance connection & Server Details
 # ---------------------------------------------------------------------------
 
-# URL of the GitLab instance to register the runner with
-gitlab_url: "https://{{ hostvars['gitlab-server']['ansible_host'] | default('192.168.4.112') }}"
-
-# ---------------------------------------------------------------------------
-# GitLab server token file configuration (Option B)
-# ---------------------------------------------------------------------------
-
-# Inventory hostname of the GitLab server host where tokens are stored
+# Inventory hostname of the GitLab server (for delegation when managing admin/registration tokens)
 gitlab_server_host: "gitlab-server"
 
-# Path on the GitLab server where the runner registration token is stored
-gitlab_server_runner_token_file: "/etc/gitlab/gitlab_runner_token"
+# URL of the GitLab instance to register the runner with
+gitlab_url: "https://{{ hostvars[gitlab_server_host]['ansible_host'] | default('192.168.4.112') }}"
 
-# Path on the GitLab server where the admin token is stored
-gitlab_admin_token_file: "/tmp/token.txt"
+# Whether to automatically ensure the GitLab admin token exists and/or retrieve tokens from the server
+gitlab_runner_manage_admin_token: true
+
+# GitLab Administrator credentials (used to provision or lookup admin token on the GitLab server)
+gitlab_admin_username: "{{ hostvars[gitlab_server_host]['gls_admin_username'] | default('gls_admin') }}"
+gitlab_admin_password: "{{ hostvars[gitlab_server_host]['gls_admin_password'] | default('gls_initial_adm_pwd') }}"
+
+# Admin personal access token name and value
+gitlab_admin_token_name: "admin_token"
+gitlab_admin_token: "{{ hostvars[gitlab_server_host]['gls_admin_token'] | default('admin_token') }}"
 
 # Registration token obtained from GitLab (Admin > CI/CD > Runners)
-# Precedence: extra-vars/vault > hostvars > server token file (/etc/gitlab/gitlab_runner_token)
+# If empty or omitted, it is automatically resolved from the GitLab server using the admin token
 gitlab_runner_registration_token: "{{ hostvars[gitlab_server_host]['gitlab_runner_registration_token'] | default(hostvars[gitlab_server_host]['runner_registration_token'] | default('')) }}"
 
-# Optional: existing runner authentication token for re-registration / update.
+# Optional: existing runner authentication token for re-registration / update (glrt-...).
 # When set, the role uses it instead of re-registering from scratch.
 gitlab_runner_token: ""
 
@@ -54,8 +55,19 @@ gitlab_runner_locked: false
 # Maximum number of jobs running simultaneously across all executors
 gitlab_runner_concurrent: 4
 
+# Maximum number of concurrent job requests per runner (prevents long polling bottlenecks)
+gitlab_runner_request_concurrency: 4
+
 # How often (seconds) the runner polls GitLab for new jobs
 gitlab_runner_check_interval: 3
+
+# Metrics and debug endpoints listen address (empty string to disable)
+gitlab_runner_listen_address: "0.0.0.0:9252"
+
+# Session server listen & advertise address for interactive web terminals
+gitlab_runner_session_server_listen_address: "0.0.0.0:8093"
+gitlab_runner_session_server_advertise_address: "{{ ansible_host }}:8093"
+gitlab_runner_session_timeout: 1800
 
 # ---------------------------------------------------------------------------
 # Executor settings (Podman / shell-inside-container)
