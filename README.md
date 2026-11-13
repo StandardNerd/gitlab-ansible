@@ -278,6 +278,12 @@ A ready-to-use development environment is provided via `.devcontainer`:
 
 Open the project folder in VS Code and select **Reopen in Container** when prompted.
 
+
+---
+
+## Download Gitlab Packages
+
+[https://packages.gitlab.com/ui/browse/gitlab/gitlab-ce/el/9/x86_64](https://packages.gitlab.com/ui/browse/gitlab/gitlab-ce/el/9/x86_64)
 ---
 
 
