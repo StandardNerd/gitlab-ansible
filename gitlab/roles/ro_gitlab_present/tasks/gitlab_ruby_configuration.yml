@@ -22,13 +22,51 @@
 
 - name: "Ruby Config: Copy rails configuration script"
   ansible.builtin.template:
-    src: "rails_configuration_steps.rb"
-    dest: "{{ gitlab_rb_scripts_tempdir.path }}/rails_configuration_steps.rb"
+    src: "{{ gls_ruby_script }}"
+    dest: "{{ gitlab_rb_scripts_tempdir.path }}/{{ gls_ruby_script }}"
     mode: '0644'
 
 - name: "Ruby Config: Execute rails configuration script"
-  ansible.builtin.command: "gitlab-rails runner {{ gitlab_rb_scripts_tempdir.path }}/rails_configuration_steps.rb"
+  ansible.builtin.command: "gitlab-rails runner {{ gitlab_rb_scripts_tempdir.path }}/{{ gls_ruby_script }}"
   register: rails_runner_result
-  changed_when: "'Admin token created' in rails_runner_result.stdout or 'changed' in rails_runner_result.stdout"
+  changed_when: >-
+    'Admin token created' in rails_runner_result.stdout or
+    'Admin token updated' in rails_runner_result.stdout or
+    'Appearance logo updated' in rails_runner_result.stdout
   failed_when: "'Error' in rails_runner_result.stderr and 'WARN' not in rails_runner_result.stderr"
+  no_log: true
+
+- name: "Ruby Config: Parse tokens from script execution"
+  ansible.builtin.set_fact:
+    _extracted_runner_reg_token: >-
+      {{
+        (rails_runner_result.stdout
+        | regex_search('RUNNER_REGISTRATION_TOKEN:\s*(\S+)', '\1')
+        | default([], true))
+        | first
+        | default('', true)
+      }}
+  no_log: true
+
+- name: "Ruby Config: Set token facts for downstream runner role"
+  ansible.builtin.set_fact:
+    gitlab_runner_registration_token: "{{ _extracted_runner_reg_token }}"
+    runner_registration_token: "{{ _extracted_runner_reg_token }}"
+    gitlab_admin_api_token: "{{ gls_admin_api_token }}"
+  no_log: true
+
+- name: "Ruby Config: Persist tokens on GitLab server filesystem"
+  ansible.builtin.copy:
+    content: "{{ item.content }}"
+    dest: "{{ item.dest }}"
+    owner: root
+    group: root
+    mode: '0600'
+  loop:
+    - dest: "/etc/gitlab/gitlab_runner_token"
+      content: "{{ gitlab_runner_registration_token }}\n"
+    - dest: "/etc/gitlab/gitlab_admin_token"
+      content: "{{ gitlab_admin_api_token }}\n"
+  when: item.content | trim | length > 0
+  no_log: true
 ...

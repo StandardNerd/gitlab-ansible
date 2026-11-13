@@ -6,6 +6,10 @@ perform_postinstall_setup: true
 gitlab_license_file: "gitlab-license.json"
 gls_ruby_script: "rails_configuration_steps.rb"
 
+# Admin API Token
+gls_admin_token_name: "admin_token"
+gls_admin_api_token: "admin_token"
+
 gls_redirect_http_to_https: true
 gls_signup_enabled: false
 

@@ -35,6 +35,48 @@
   register: _runner_cert_stat
 
 # ---------------------------------------------------------------------------
+# Resolve registration token from server file (Option B) if not provided
+# ---------------------------------------------------------------------------
+- name: "Register: Read registration token from GitLab server file (Option B)"
+  ansible.builtin.slurp:
+    src: "{{ gitlab_server_runner_token_file | default('/etc/gitlab/gitlab_runner_token') }}"
+  delegate_to: "{{ gitlab_server_host | default('gitlab-server') }}"
+  register: _register_server_token_raw
+  when:
+    - _existing_runner_token | length == 0
+    - gitlab_runner_token | length == 0
+    - (gitlab_runner_registration_token | default('') | length == 0) or
+      (gitlab_runner_registration_token == '4gcyYJNxXUxMZKji5WpA') or
+      (gitlab_runner_registration_token == 'REPLACE_ME')
+  ignore_errors: true
+  no_log: true
+
+- name: "Register: Set registration token from slurped server file"
+  ansible.builtin.set_fact:
+    gitlab_runner_registration_token: "{{ (_register_server_token_raw.content | b64decode | trim) }}"
+  when:
+    - _register_server_token_raw is defined
+    - _register_server_token_raw.content is defined
+    - (_register_server_token_raw.content | b64decode | trim | length) > 0
+  no_log: true
+
+- name: "Register: Ensure registration token is valid before attempting registration"
+  ansible.builtin.assert:
+    that:
+      - gitlab_runner_registration_token is defined
+      - gitlab_runner_registration_token | length > 0
+      - gitlab_runner_registration_token != '4gcyYJNxXUxMZKji5WpA'
+      - gitlab_runner_registration_token != 'REPLACE_ME'
+    fail_msg: >
+      Registration token could not be obtained. Neither 'gitlab_runner_registration_token'
+      was set, nor could '{{ gitlab_server_runner_token_file | default('/etc/gitlab/gitlab_runner_token') }}'
+      be read from host '{{ gitlab_server_host | default('gitlab-server') }}'.
+    quiet: true
+  when:
+    - _existing_runner_token | length == 0
+    - gitlab_runner_token | length == 0
+
+# ---------------------------------------------------------------------------
 # Register only when:
 #   - no token found in config.toml  AND
 #   - no pre-existing token was supplied via gitlab_runner_token

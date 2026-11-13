@@ -30,6 +30,7 @@
 
 - name: "Main: Configure GitLab with Ruby scripts"
   ansible.builtin.include_tasks: "gitlab_ruby_configuration.yml"
+  when: perform_postinstall_setup | bool
 
 - name: "Main: Cleanup environment after installation"
   ansible.builtin.include_tasks: "cleanup.yml"

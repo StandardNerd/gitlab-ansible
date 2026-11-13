@@ -9,9 +9,19 @@
 # URL of the GitLab instance to register the runner with
 gitlab_url: "https://{{ hostvars['gitlab-server']['ansible_host'] | default('192.168.4.112') }}"
 
+# ---------------------------------------------------------------------------
+# GitLab server token file configuration (Option B)
+# ---------------------------------------------------------------------------
+
+# Inventory hostname of the GitLab server host where tokens are stored
+gitlab_server_host: "gitlab-server"
+
+# Path on the GitLab server where the runner registration token is stored
+gitlab_server_runner_token_file: "/etc/gitlab/gitlab_runner_token"
+
 # Registration token obtained from GitLab (Admin > CI/CD > Runners)
-# Override via vault or extra-vars; do NOT store plaintext in source control
-gitlab_runner_registration_token: "{{ hostvars['gitlab-server']['gitlab_runner_registration_token'] | default(hostvars['gitlab-server']['runner_registration_token'] | default('4gcyYJNxXUxMZKji5WpA')) }}"
+# Precedence: extra-vars/vault > hostvars > server token file (/etc/gitlab/gitlab_runner_token)
+gitlab_runner_registration_token: "{{ hostvars[gitlab_server_host]['gitlab_runner_registration_token'] | default(hostvars[gitlab_server_host]['runner_registration_token'] | default('')) }}"
 
 # Optional: existing runner authentication token for re-registration / update.
 # When set, the role uses it instead of re-registering from scratch.

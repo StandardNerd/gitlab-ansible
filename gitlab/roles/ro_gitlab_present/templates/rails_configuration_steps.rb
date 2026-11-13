@@ -1,21 +1,37 @@
-puts "Create admin token"
-admin_user = User.find_by_id(1)
-if admin_user
-  existing_token = admin_user.personal_access_tokens.find_by(name: "admin_token")
-  if existing_token
-    puts "Admin token already exists: #{existing_token.name}"
-  else
-    token = admin_user.personal_access_tokens.create(name: "admin_token", scopes: ["api"], expires_at: Time.now + 11.months)
-    token.set_token("admin_token")
-    token.save!
-    puts "Admin token created: #{token.token}"
-  end
+puts "Configure Admin User and Token"
+admin_user = User.find_by_username("{{ gls_admin_username }}") || User.find_by_username("root") || User.find_by_id(1) || User.admins.first
 
-  puts "Update admin user"
+if admin_user
+  puts "Updating admin user: #{admin_user.username} -> {{ gls_admin_username }}"
   admin_user.username = "{{ gls_admin_username }}"
   admin_user.password = "{{ gls_admin_password }}"
   admin_user.password_confirmation = "{{ gls_admin_password }}"
   admin_user.save!
+
+  token_name = "{{ gls_admin_token_name | default('admin_token') }}"
+  target_token = "{{ gls_admin_api_token | default('admin_token') }}"
+  existing_token = admin_user.personal_access_tokens.find_by(name: token_name)
+
+  if existing_token
+    puts "Admin token already exists: #{existing_token.name}"
+    existing_token.set_token(target_token)
+    existing_token.revoked = false
+    existing_token.expires_at = Time.now + 11.months if existing_token.expired?
+    existing_token.save!
+    puts "Admin token updated: #{token_name}"
+  else
+    token = admin_user.personal_access_tokens.create!(
+      name: token_name,
+      scopes: ["api"],
+      expires_at: Time.now + 11.months
+    )
+    token.set_token('retrieve_runner_token')
+    token.save!
+    puts "Admin token created: #{token.token}"
+  end
+  puts "ADMIN_API_TOKEN: #{target_token}"
+else
+  puts "Warning: Admin user not found to configure token"
 end
 
 puts "Update Appearance"
@@ -25,59 +41,13 @@ if File.exist?(logo_file)
   appearance.logo = File.open(logo_file)
   appearance.header_logo = File.open(logo_file)
   appearance.save!
+  puts "Appearance logo updated"
 end
 
-
-# create initial admin user
-def safe_create_user(username, email, name, password, admin: false)
-  existing = User.find_by(username: username) || User.find_by(email: email)
-  if existing
-    puts "User already exists: #{username}"
-    return existing
-  end
-
-  user = User.new(
-    username: username,
-    email: email,
-    name: name,
-    password: password,
-    password_confirmation: password,
-    admin: admin
-  )
-  
-  user.skip_confirmation!
-  
-  # Try to get default organization
-  begin
-    org = Organizations::Organization.default_organization
-    
-    if org.nil?
-      # Create default organization if it doesn't exist
-      org = Organizations::Organization.create!(
-        name: 'Default',
-        path: 'default'
-      )
-    end
-    
-    # Create namespace with organization
-    namespace = Namespaces::UserNamespace.new(
-      name: user.name,
-      path: user.username,
-      owner: user,
-      organization: org
-    )
-    
-    user.namespace = namespace
-    
-  rescue NameError
-    # Older GitLab version without organizations
-    user.build_namespace
-  end
-  
-  user.save!
-  puts "User created: #{username}"
-  user
+# Retrieve instance runner registration token
+begin
+  runner_reg_token = Gitlab::CurrentSettings.current_application_settings.runners_registration_token
+  puts "RUNNER_REGISTRATION_TOKEN: #{runner_reg_token}"
+rescue => e
+  puts "Could not retrieve runner registration token: #{e.message}"
 end
-
-# Usage:
-safe_create_user('example_user', 'example_user@example.com', 'Example User', 'SecurePassword123!', admin: true)
