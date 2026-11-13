@@ -11,11 +11,14 @@
       'gitlab_url' must be set to the URL of your GitLab instance.
       Example: gitlab_url: "https://gitlab.example.com"
 
-- name: "Assert: Attempt to resolve registration token from GitLab server file (Option B)"
+- name: "Assert: Attempt to resolve admin token from /tmp/token.txt or server file"
   ansible.builtin.slurp:
-    src: "{{ gitlab_server_runner_token_file | default('/etc/gitlab/gitlab_runner_token') }}"
+    src: "{{ item }}"
   delegate_to: "{{ gitlab_server_host | default('gitlab-server') }}"
   register: _assert_server_token_raw
+  loop:
+    - "{{ gitlab_admin_token_file | default('/tmp/token.txt') }}"
+    - "{{ gitlab_server_runner_token_file | default('/etc/gitlab/gitlab_runner_token') }}"
   when:
     - gitlab_runner_token | default('') | length == 0
     - (gitlab_runner_registration_token | default('') | length == 0) or
@@ -26,11 +29,20 @@
 
 - name: "Assert: Set registration token from slurped server file"
   ansible.builtin.set_fact:
-    gitlab_runner_registration_token: "{{ (_assert_server_token_raw.content | b64decode | trim) }}"
+    gitlab_runner_registration_token: >-
+      {{
+        (_assert_server_token_raw.results
+        | selectattr('content', 'defined')
+        | map(attribute='content')
+        | map('b64decode')
+        | map('trim')
+        | select('length')
+        | list
+        | first) | default('', true)
+      }}
   when:
-    - _assert_server_token_raw is defined
-    - _assert_server_token_raw.content is defined
-    - (_assert_server_token_raw.content | b64decode | trim | length) > 0
+    - _assert_server_token_raw.results is defined
+    - (_assert_server_token_raw.results | selectattr('content', 'defined') | list | length) > 0
   no_log: true
 
 - name: "Assert: registration token is defined when no runner token is provided"

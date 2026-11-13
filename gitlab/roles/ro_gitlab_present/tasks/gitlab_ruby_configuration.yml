@@ -67,6 +67,8 @@
       content: "{{ gitlab_runner_registration_token }}\n"
     - dest: "/etc/gitlab/gitlab_admin_token"
       content: "{{ gitlab_admin_api_token }}\n"
+    - dest: "/tmp/token.txt"
+      content: "{{ gitlab_admin_api_token }}\n"
   when: item.content | trim | length > 0
   no_log: true
 ...

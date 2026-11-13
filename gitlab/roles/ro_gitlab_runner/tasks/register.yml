@@ -34,10 +34,75 @@
     path: "{{ gitlab_runner_config_dir }}/certs/{{ _gitlab_host | default(gitlab_url | regex_replace('^https?://', '') | regex_replace('(:[0-9]+)?(/.*)?$', '')) }}.crt"
   register: _runner_cert_stat
 
+- name: "Register: Read GitLab admin token from /tmp/token.txt"
+  ansible.builtin.slurp:
+    src: "{{ gitlab_admin_token_file | default('/tmp/token.txt') }}"
+  delegate_to: "{{ gitlab_server_host | default('gitlab-server') }}"
+  register: _admin_token_server_raw
+  when:
+    - _existing_runner_token | length == 0
+    - gitlab_runner_token | length == 0
+  ignore_errors: true
+  no_log: true
+
+- name: "Register: Fallback to reading /tmp/token.txt from local host"
+  ansible.builtin.slurp:
+    src: "{{ gitlab_admin_token_file | default('/tmp/token.txt') }}"
+  register: _admin_token_local_raw
+  when:
+    - _existing_runner_token | length == 0
+    - gitlab_runner_token | length == 0
+    - _admin_token_server_raw.content is not defined
+  ignore_errors: true
+
+- name: "Register: Set gitlab_admin_token fact"
+  ansible.builtin.set_fact:
+    gitlab_admin_token: >-
+      {{
+        ((_admin_token_server_raw.content | default('')) | b64decode | trim)
+        if (_admin_token_server_raw.content is defined and (_admin_token_server_raw.content | b64decode | trim | length > 0))
+        else (((_admin_token_local_raw.content | default('')) | b64decode | trim)
+              if (_admin_token_local_raw.content is defined and (_admin_token_local_raw.content | b64decode | trim | length > 0))
+              else (gitlab_admin_token | default('')))
+      }}
+  when:
+    - _existing_runner_token | length == 0
+    - gitlab_runner_token | length == 0
+  no_log: true
+
+- name: "Register: Enable runner registration token in GitLab settings (prevents 403 Forbidden)"
+  ansible.builtin.uri:
+    url: "{{ gitlab_url }}/api/v4/application/settings"
+    method: PUT
+    headers:
+      PRIVATE-TOKEN: "{{ gitlab_admin_token }}"
+    body_format: json
+    body:
+      allow_runner_registration_token: true
+    validate_certs: false
+    status_code: [200, 201]
+  register: _gitlab_settings_api_result
+  when:
+    - _existing_runner_token | length == 0
+    - gitlab_runner_token | length == 0
+    - gitlab_admin_token is defined
+    - gitlab_admin_token | length > 0
+  ignore_errors: true
+  no_log: true
+
+- name: "Register: Set registration token from GitLab application settings API response"
+  ansible.builtin.set_fact:
+    gitlab_runner_registration_token: "{{ _gitlab_settings_api_result.json.runners_registration_token }}"
+  when:
+    - _gitlab_settings_api_result.json is defined
+    - _gitlab_settings_api_result.json.runners_registration_token is defined
+    - (_gitlab_settings_api_result.json.runners_registration_token | length) > 0
+  no_log: true
+
 # ---------------------------------------------------------------------------
-# Resolve registration token from server file (Option B) if not provided
+# Fallback: Read registration token from server file if API did not supply it
 # ---------------------------------------------------------------------------
-- name: "Register: Read registration token from GitLab server file (Option B)"
+- name: "Register: Read registration token from GitLab server file fallback"
   ansible.builtin.slurp:
     src: "{{ gitlab_server_runner_token_file | default('/etc/gitlab/gitlab_runner_token') }}"
   delegate_to: "{{ gitlab_server_host | default('gitlab-server') }}"
@@ -51,13 +116,20 @@
   ignore_errors: true
   no_log: true
 
-- name: "Register: Set registration token from slurped server file"
+- name: "Register: Set registration token from slurped server file or admin token"
   ansible.builtin.set_fact:
-    gitlab_runner_registration_token: "{{ (_register_server_token_raw.content | b64decode | trim) }}"
+    gitlab_runner_registration_token: >-
+      {{
+        ((_register_server_token_raw.content | default('')) | b64decode | trim)
+        if (_register_server_token_raw.content is defined and (_register_server_token_raw.content | b64decode | trim | length > 0))
+        else (gitlab_admin_token | default(''))
+      }}
   when:
-    - _register_server_token_raw is defined
-    - _register_server_token_raw.content is defined
-    - (_register_server_token_raw.content | b64decode | trim | length) > 0
+    - _existing_runner_token | length == 0
+    - gitlab_runner_token | length == 0
+    - (gitlab_runner_registration_token | default('') | length == 0) or
+      (gitlab_runner_registration_token == '4gcyYJNxXUxMZKji5WpA') or
+      (gitlab_runner_registration_token == 'REPLACE_ME')
   no_log: true
 
 - name: "Register: Ensure registration token is valid before attempting registration"
@@ -69,8 +141,9 @@
       - gitlab_runner_registration_token != 'REPLACE_ME'
     fail_msg: >
       Registration token could not be obtained. Neither 'gitlab_runner_registration_token'
-      was set, nor could '{{ gitlab_server_runner_token_file | default('/etc/gitlab/gitlab_runner_token') }}'
-      be read from host '{{ gitlab_server_host | default('gitlab-server') }}'.
+      was set, nor could it be resolved via admin token from '/tmp/token.txt'
+      or '{{ gitlab_server_runner_token_file | default('/etc/gitlab/gitlab_runner_token') }}'
+      on host '{{ gitlab_server_host | default('gitlab-server') }}'.
     quiet: true
   when:
     - _existing_runner_token | length == 0

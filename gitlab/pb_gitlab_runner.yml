@@ -23,7 +23,7 @@
       ansible.builtin.include_role:
         name: ro_gitlab_runner
       vars:
-        gitlab_runner_registration_token: "{{ runner_registration_token | default('4gcyYJNxXUxMZKji5WpA') }}"
+        gitlab_runner_registration_token: "{{ runner_registration_token | default(hostvars['gitlab-server']['gitlab_runner_registration_token'] | default(omit)) }}"
         gitlab_runner_name: "{{ inventory_hostname }}-podman-runner"
         gitlab_runner_tags: "podman,linux"
         gitlab_runner_concurrent: 4

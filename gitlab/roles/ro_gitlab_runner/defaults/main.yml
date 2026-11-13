@@ -19,6 +19,9 @@ gitlab_server_host: "gitlab-server"
 # Path on the GitLab server where the runner registration token is stored
 gitlab_server_runner_token_file: "/etc/gitlab/gitlab_runner_token"
 
+# Path on the GitLab server where the admin token is stored
+gitlab_admin_token_file: "/tmp/token.txt"
+
 # Registration token obtained from GitLab (Admin > CI/CD > Runners)
 # Precedence: extra-vars/vault > hostvars > server token file (/etc/gitlab/gitlab_runner_token)
 gitlab_runner_registration_token: "{{ hostvars[gitlab_server_host]['gitlab_runner_registration_token'] | default(hostvars[gitlab_server_host]['runner_registration_token'] | default('')) }}"
